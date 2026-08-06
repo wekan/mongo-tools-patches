@@ -96,24 +96,41 @@ jobs:
           MAJOR="${VERSION%%.*}"
 
           # Upstream's own notes for this exact version, out of upstream's
-          # CHANGELOG.md at the tag. Sections are `## <version>` and run to the
-          # next `## `. FETCHED at the tag rather than read from the workspace so
-          # this reads the changelog of exactly the source that was built, and
-          # `|| true` because notes are worth having and not worth failing a
-          # publish over.
-          URL="https://raw.githubusercontent.com/mongodb/mongo-tools/${VERSION}/CHANGELOG.md"
+          # CHANGELOG.md. Sections are `## <version>` and run to the next `## `.
+          # FETCHED rather than read from the workspace, because this repo
+          # carries patches, not a mongo-tools tree.
+          #
+          # THE TAG FIRST, then the default branch - and the second one is not
+          # belt and braces, it is the normal case. Upstream tags the release
+          # and writes the changelog entry AFTERWARDS: 100.17.0 is tag
+          # 0b142f65 ("100.17.0 release: BOM & SARIF files"), and the entry
+          # arrived in 9cd3c4a8 ("TOOLS-4197 Update changelog for 100.17.0"),
+          # which comes after it. So at the tag the section does not exist yet -
+          # the first run said exactly that and published notes with the header
+          # only. The tag is still asked first, because when the entry IS there
+          # it is the changelog of precisely the source that was built.
+          #
+          # `|| true` / `continue` throughout: notes are worth having and not
+          # worth failing a publish over.
           : > upstream-notes.md
-          curl -fsSL --retry 3 --retry-delay 2 -o upstream-changelog.md "$URL" || true
-          if [ -s upstream-changelog.md ]; then
+          NOTES_REF=""
+          for ref in "$VERSION" master; do
+            URL="https://raw.githubusercontent.com/mongodb/mongo-tools/${ref}/CHANGELOG.md"
+            curl -fsSL --retry 3 --retry-delay 2 -o upstream-changelog.md "$URL" || continue
+            [ -s upstream-changelog.md ] || continue
             awk -v ver="$VERSION" '
               $0 == "## " ver { inblock=1; next }
               inblock && /^## / { exit }
               inblock { print }
             ' upstream-changelog.md > upstream-notes.md
             sed -i -e '/./,$!d' upstream-notes.md
+            if [ -s upstream-notes.md ]; then NOTES_REF="$ref"; break; fi
+          done
+          if [ -n "$NOTES_REF" ]; then
+            echo "Upstream's $VERSION notes came from CHANGELOG.md at ${NOTES_REF}."
+          else
+            echo "::warning::No $VERSION section in upstream's CHANGELOG.md, at the tag or on master - the notes will carry the header only."
           fi
-          [ -s upstream-notes.md ] || \
-            echo "::warning::No $VERSION section in upstream's CHANGELOG.md ($URL) - the notes will carry the header only."
 
           # What this run produced, for the platform line. The checksums are not
           # platforms, so they are filtered out the way node-patches' publish job
@@ -154,6 +171,15 @@ jobs:
         if: ${{ inputs.publish }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GH_REPO, because gh works out WHICH repository to talk to from the
+          # git remote of the working directory - and after apply-patches.sh the
+          # working directory is the UPSTREAM clone, whose origin is
+          # mongodb/mongo-tools. Without this, the first run's publish answered
+          #   HTTP 403: Resource not accessible by integration
+          #   (https://api.github.com/repos/mongodb/mongo-tools/releases)
+          # after building all 128 binaries: it was trying to create the release
+          # on MongoDB's repository, which this token has no business writing to.
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           shopt -s nullglob

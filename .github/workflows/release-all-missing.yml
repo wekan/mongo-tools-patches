@@ -76,6 +76,15 @@ jobs:
       - name: What the release already has
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GH_REPO, because gh works out WHICH repository to talk to from the
+          # git remote of the working directory - and after apply-patches.sh the
+          # working directory is the UPSTREAM clone, whose origin is
+          # mongodb/mongo-tools. Without this, the first run's publish answered
+          #   HTTP 403: Resource not accessible by integration
+          #   (https://api.github.com/repos/mongodb/mongo-tools/releases)
+          # after building all 128 binaries: it was trying to create the release
+          # on MongoDB's repository, which this token has no business writing to.
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           sh _patches/.github/scripts/release-assets.sh "$RELEASE_TAG" | sort > existing.txt
@@ -91,6 +100,15 @@ jobs:
       - name: Upload the missing binaries, and say what was filled in
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GH_REPO, because gh works out WHICH repository to talk to from the
+          # git remote of the working directory - and after apply-patches.sh the
+          # working directory is the UPSTREAM clone, whose origin is
+          # mongodb/mongo-tools. Without this, the first run's publish answered
+          #   HTTP 403: Resource not accessible by integration
+          #   (https://api.github.com/repos/mongodb/mongo-tools/releases)
+          # after building all 128 binaries: it was trying to create the release
+          # on MongoDB's repository, which this token has no business writing to.
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           shopt -s nullglob

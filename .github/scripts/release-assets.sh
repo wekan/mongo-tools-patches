@@ -10,7 +10,11 @@
 # rather than inline YAML so both workflows read the release the same way and
 # `sh -n` can check it.
 #
-# Needs gh and GH_TOKEN in the environment.
+# Needs gh and GH_TOKEN in the environment - and GH_REPO, which gh reads
+# natively to know WHICH repository to ask. That is not optional here: gh
+# otherwise works the repository out from the git remote of the working
+# directory, and by the time this runs the working directory is the UPSTREAM
+# mongo-tools clone. Asking it for a release answers about mongodb/mongo-tools.
 
 set -eu
 

@@ -310,6 +310,73 @@ for p in "$ROOT"/dist/*/*.patch; do
 done
 [ "$found" -eq 0 ] && ok "no patches yet - upstream builds as it is (see dist/README.md)"
 
+# ── 7. gh talks to THIS repository, not the one in the working directory ─────
+#
+# This is what the first real run died of, after building all 128 binaries:
+#
+#   HTTP 403: Resource not accessible by integration
+#   (https://api.github.com/repos/mongodb/mongo-tools/releases)
+#
+# gh works out which repository to act on from the git remote of the working
+# directory - and by publish time the working directory IS the upstream clone,
+# whose origin is mongodb/mongo-tools. So every step that runs gh has to say
+# which repository it means. GH_REPO is how gh is told.
+echo
+echo "Every step that runs gh names this repository:"
+for wf in "$ALL" "$MISSING"; do
+  n="$(basename "$wf")"
+  tok="$(grep -c 'GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}' "$wf")"
+  rep="$(grep -c 'GH_REPO: \${{ github.repository }}' "$wf")"
+  [ "$tok" = "$rep" ] && [ "$tok" != "0" ] \
+    && ok "$n: $tok step(s) with a token, $rep with GH_REPO" \
+    || fail "$n has $tok GH_TOKEN step(s) but $rep GH_REPO - gh would guess the repository from the upstream clone"
+done
+
+# ── 8. The release notes find upstream's own section ─────────────────────────
+#
+# Upstream tags the release and writes the changelog entry AFTERWARDS, so the
+# section is not in CHANGELOG.md at the tag - the first run published notes with
+# the header only and said so. The lookup therefore tries the tag and then the
+# default branch, and the extraction itself is the workflow's own awk, run here
+# against a fixture.
+echo
+echo "The release notes take upstream's section for the version:"
+grep -q 'for ref in "\$VERSION" master' "$ALL" \
+  && ok "the notes try the tag first, then master" \
+  || fail "release-all.yml does not fall back to upstream's default branch - the section is written after the tag"
+
+sed -n "/^ *\\\$0 == \"## \" ver/,/^ *inblock { print }/p" "$ALL" | sed 's/^ *//' > "$TMP/prog.awk"
+if [ -s "$TMP/prog.awk" ]; then
+  ok "the section extractor was found in release-all.yml"
+else
+  fail "could not extract the awk section program from release-all.yml"
+fi
+cat > "$TMP/CHANGELOG.md" <<'FIX'
+# Database Tools Changelog
+
+## 100.18.0
+
+_Released 2026-09-01_
+
+Newer release, must NOT be picked.
+
+## 100.17.0
+
+_Released 2026-05-08_
+
+The line that belongs in the notes.
+
+## 100.16.1
+
+Older release, must NOT be picked.
+FIX
+got="$(awk -v ver=100.17.0 -f "$TMP/prog.awk" "$TMP/CHANGELOG.md" | grep -c 'belongs in the notes')"
+spill="$(awk -v ver=100.17.0 -f "$TMP/prog.awk" "$TMP/CHANGELOG.md" | grep -c 'must NOT be picked')"
+[ "$got" = "1" ] && ok "it takes the section of the version being built" \
+                 || fail "the extractor did not find the 100.17.0 section in the fixture"
+[ "$spill" = "0" ] && ok "and stops at the next section, so no other release leaks in" \
+                   || fail "the extractor ran past the section boundary into $spill neighbouring line(s)"
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "workflow-logic: everything holds."
