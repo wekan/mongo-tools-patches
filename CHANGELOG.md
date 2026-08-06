@@ -1,0 +1,265 @@
+# Platforms
+
+MongoDB Database Tools binaries built from upstream + these patches, at these
+platforms:
+
+- [Releases](https://github.com/wekan/mongo-tools-patches/releases)
+- [Upstream mongo-tools](https://github.com/mongodb/mongo-tools)
+- [How WeKan consumes them](https://github.com/wekan/wekan)
+- [Design docs](docs/Design/Directory-structure.md)
+
+Each build applies the patches onto a **shallow, single-branch** clone
+(`--depth 1 --single-branch`) of the newest upstream MongoDB Database Tools
+**release** — the newest `<MAJOR>.x` tag (`MAJOR` from
+[`tools-major.txt`](tools-major.txt)), never a branch head or a commit between
+releases, and with no git history behind the tag. What was cloned for the current
+line:
+
+| Upstream | Branch | Tag | Commit |
+|----------|--------|-----|--------|
+| [mongodb/mongo-tools](https://github.com/mongodb/mongo-tools) | 100.x | [100.17.0](https://github.com/mongodb/mongo-tools/releases/tag/100.17.0) | [`0b142f65e139525881b6a343bc56d8d98e5a1f90`](https://github.com/mongodb/mongo-tools/commit/0b142f65e139525881b6a343bc56d8d98e5a1f90) |
+
+Each release's own notes repeat this table for the exact version it carries, filled
+in by the build from the tag it cloned.
+
+<details>
+<summary>Version</summary>
+
+- Upstream tags the Database Tools `100.17.0` — no leading `v`, unlike Node.js — and
+  its tag list still carries the old `r4.2.x` ones, so the version resolution takes
+  the newest `<MAJOR>.<MINOR>.<PATCH>` of the tracked major and nothing else.
+- There is ONE patch section, `dist/all/`, applied to every target. One checkout
+  cross-compiles all sixteen platforms here, so a patch that concerns one GOOS or
+  GOARCH carries a Go build constraint rather than a section of its own. See
+  [dist/README.md](dist/README.md).
+- Each patch is a `*.patch` file with a `*.sha256sum` (the checksum of the patch file)
+  and a `*.md` (what the patch does). The build clones upstream at the release tag,
+  verifies each checksum, and applies the patch.
+- The upstream version is resolved at build time — the newest `<MAJOR>.x` release — so
+  the patches carry forward across upstream releases without editing.
+- The binaries a release carries are named `<tool>-<arch>` (`<tool>-<arch>.exe` on
+  Windows), each with a `.sha256sum`. A release accumulates binaries — a rebuilt one
+  clobbers its own asset and leaves the rest alone.
+- The eight tools: `bsondump`, `mongodump`, `mongoexport`, `mongofiles`,
+  `mongoimport`, `mongorestore`, `mongostat`, `mongotop`.
+- The sixteen platforms: `amd64`, `arm64`, `armhf`, `armel`, `i386`, `ppc64le`,
+  `s390x`, `riscv64`, `loong64`, `win64`, `win-arm64`, `win32`, `mac-amd64`,
+  `mac-arm64`, `freebsd-amd64`, `freebsd-arm64`. The `<arch>` tokens match
+  wekan/FerretDB's `ferretdb-<arch>` naming, so one token names a platform's whole
+  set.
+
+</details>
+
+# TODO Later
+
+<details>
+<summary>Carried to a future release.</summary>
+
+Investigated but not finished, with findings recorded for whoever picks them up
+next. Entries that have since been done are removed from this list as they are
+handled (their commits carry the short description and link).
+
+- WeKan's own release build still downloads the tools from
+  [wekan/mongo-tools](https://github.com/wekan/mongo-tools) releases. Switching those
+  URLs to this repo belongs in the WeKan repository, and it waits until this repo has
+  published a release to point at.
+- No full build has run in the development sandbox — it has no Go toolchain — so the
+  compile itself is covered by a stubbed `go` in `tests/workflow-logic.sh` and by the
+  first CI run, not by a local build.
+
+</details>
+
+# Upcoming mongo-tools-patches release
+
+**In short:** the repository that replaces the **wekan/mongo-tools** source fork. That
+fork held 738 directories of upstream Go source it never changed — its six commits
+were all the **build** — so this repo keeps the build and drops the source: **Release
+All** and **Release All Missing** clone the newest upstream `100.x` release, verify
+and apply the patches in **`dist/`**, cross-compile the **eight tools** for **sixteen
+platforms** with CGO disabled, and publish one `<tool>-<arch>` binary and
+`.sha256sum` per platform. Same model as **wekan/node-patches**, with the one
+difference the language forces: pure Go cross-compiles from a single checkout, so
+there is one patch section instead of six and one build job instead of thirteen.
+Below that: the two scripts both workflows share so they cannot drift, the two **test
+scripts** that run the real code offline against a fixture upstream and a stubbed Go,
+and the design docs and maintainer instructions the repo is set up with.
+
+This release creates the repository:
+
+**The build** - what clones upstream, what compiles, and what a release carries.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">Release All builds every tool for every platform from upstream plus the patches</a>. Thanks to xet7.</summary>
+
+One `workflow_dispatch` run checks the patches out into `_patches/`, clones the
+newest upstream `100.x` release beside them, applies the patches, pins the Go
+toolchain from the **upstream** `go.mod` (which is why `setup-go` runs after the
+clone, not before), and cross-compiles the eight tools for the sixteen platforms into
+`out/` with `CGO_ENABLED=0`.
+
+It is ONE job, where wekan/node-patches needs thirteen: the tools are pure Go, so
+every target is an ordinary `GOOS=… GOARCH=… go build` on the x86_64 runner — no
+container, no cross toolchain, no emulation, minutes instead of the hours a V8 build
+takes. A target that does not compile is skipped and reported, never fatal, because
+MongoDB itself ships no tools for several of these and an honest gap beats a red run.
+
+The release notes carry the platform list, the three commands that verify a download,
+a provenance table (upstream repo, branch, tag, exact commit) and upstream's own
+CHANGELOG section for that version, fetched from the tag. Assets go up with
+`--clobber`, so a release accumulates: a rebuilt binary overwrites only itself. The
+release is tagged with the upstream version, because that is what it is — upstream at
+that release plus the patches in `dist/`.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">Release All Missing builds only the binaries a release does not already carry</a>. Thanks to xet7.</summary>
+
+A release carries up to 128 assets — eight tools times sixteen platforms, each with a
+`.sha256sum`. When one upload fails, or a platform is added, or a run is cancelled
+half way, rebuilding all of them replaces bytes that were already correct. This asks
+the release what it has and builds the gap.
+
+A binary counts as present only when BOTH it and its `.sha256sum` are on the release,
+so a binary whose checksum upload failed is repaired rather than left half published.
+The upload runs without `--clobber`, because everything built here was absent: an
+upload that would overwrite something means the release changed under the run, and
+that is worth failing on. Nothing to build at all is a notice, not a failure.
+
+It shares the scripts rather than calling Release All as a reusable workflow, which
+is what node-patches has to do with its thirteen platform-specific jobs. Here the
+build is one script, so sharing the script is enough — and it avoids the
+caller/callee concurrency-group deadlock that indirection brought with it there.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The upstream release is resolved from a major line instead of being typed into a workflow</a>. Thanks to xet7.</summary>
+
+`releases/newest-release.sh` reads `tools-major.txt` (`100`) and asks upstream for the
+newest `100.<MINOR>.<PATCH>` release tag. "Release" means a published tag — never a
+branch head, never a commit between releases — so a build is always of an upstream
+release and is reproducible.
+
+Two things make this different from node-patches' script of the same name: upstream
+tags the Database Tools `100.17.0` with **no leading `v`**, and its tag list still
+carries the old `r4.2.x` tags and release candidates, so the filter has to be strict
+about what a release of this major looks like.
+
+A new upstream patch release therefore needs no edit at all — the next run picks it
+up. A new major is a one-line edit to `tools-major.txt`.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The clone, the checksum check and the patch apply are one script both workflows run</a>. Thanks to xet7.</summary>
+
+`releases/apply-patches.sh` clones upstream at the resolved tag, moves the tree into
+the workspace root beside the patches checkout, verifies each patch's `.sha256sum`
+before applying it, and records the exact upstream commit — which is then stamped into
+every binary's `--version` output, printed in the run summary and repeated in the
+release notes, so a binary traces to the source it was built from.
+
+The checksum is verified BEFORE `git apply`, so a corrupted or hand-edited patch fails
+loudly instead of applying wrong, and a patch that no longer applies to the pristine
+tag fails here too — which is the signal to re-port it.
+
+The move is deliberately a single `mv` under `dotglob`. node-patches' first run added
+a second, explicit `mv nodesrc/.git .` after it and killed all thirteen of its builds
+three seconds after cloning, because the glob had already taken `.git`; `rmdir` then
+asserts nothing was left behind, and a guard checks `.git` really arrived. The test
+script fails if that second move ever comes back.
+
+</details>
+
+**The patches** - the section, and why there are none in it yet.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The fork this replaces changed no upstream source, so the patch section starts empty</a>. Thanks to xet7.</summary>
+
+`wekan/mongo-tools` was a fork of a large Go project, and every one of its six commits
+was the build workflow and its changelog. The Go source beside them was upstream's,
+unmodified, kept in a fork only so a workflow had somewhere to live. That is exactly
+the arrangement node-patches retired for Node.js.
+
+So `dist/all/` is empty, and the build says so rather than hiding it: *"No patches in
+dist/all - building pristine upstream 100.17.0."* It is where a patch goes the day a
+tool needs one to compile for a platform upstream does not build, and
+`build-tools.sh`'s list of targets it could not compile is the shopping list.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">A patch for one platform carries a Go build constraint instead of a section of its own</a>. Thanks to xet7.</summary>
+
+node-patches organises patches into six sections with an apply-map, because each of
+its thirteen platforms is its own build job with its own checkout — so a patch can be
+applied to the i386 tree and not to the arm64 one.
+
+Here ONE checkout cross-compiles all sixteen targets, so there is no per-platform tree
+to apply a patch to, and a patch that concerns one GOOS or GOARCH says so in Go
+instead: `//go:build loong64`, a `_linux_386.go` filename, a `runtime.GOARCH` branch —
+which is how upstream and every other Go project do it, and which the single patched
+tree then compiles correctly for every target at once.
+
+If a patch ever cannot be expressed that way, sections come back and the hook for them
+is already there: the workspace is a real git clone, so the build can
+`git checkout . && git clean -fd` between targets. That is a change to make when there
+is a patch that needs it, not before.
+
+</details>
+
+**The tests and the documentation** - what can be checked without a runner, and what
+the next reader is told.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">workflow-logic.sh runs the repo's own scripts against a fixture upstream and a stubbed Go</a>. Thanks to xet7.</summary>
+
+No network, a couple of seconds, and it does not restate the logic in a test and then
+check the copy — the logic lives in scripts and this runs those scripts. It resolves
+the newest release against a local fixture repository whose tags include an `rc`, an
+`r4.2.x` and another major, so the filter is really exercised; it clones and patches
+a fixture upstream through `apply-patches.sh`; and it runs `build-tools.sh` with a
+stubbed `go` to check the target list, the skip list, the checksum files and what the
+build treats as fatal.
+
+Its negative tests are what make the rest mean anything: a patch whose checksum does
+not match must not be applied, the `mv …/.git` bug must fail if it comes back, a
+binary whose checksum is missing from the release must be rebuilt, and a build that
+produced nothing at all must fail rather than publish an empty release.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">patches-apply.sh applies every patch to the upstream release the build would clone</a>. Thanks to xet7.</summary>
+
+The question this repo lives or dies on is whether its patches still apply, and the
+answer otherwise arrives as a `git apply` error in a build log nobody is watching.
+
+It does not clone mongo-tools — a large repository with its whole vendored dependency
+tree, to answer a question about a handful of files. It reconstructs exactly the files
+the patches touch, taken from their own headers so a patch that starts touching
+another file is fetched without anyone remembering to add it, fetches them from
+upstream at the tag the build's own resolver picked, and applies the patches
+cumulatively, checksum first. It exits 77 when upstream is unreachable, so a sandbox
+without network says so instead of reporting a green run it did not do.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The design docs, README and CLAUDE.md say what the repo is and how to change it</a>. Thanks to xet7.</summary>
+
+`docs/Design/Directory-structure.md` is the layout, `How-the-build-works.md` the
+clone→verify→apply→build→publish flow and what to do when upstream releases or a patch
+stops applying, and `Patch-format.md` the three-file convention — `.patch`,
+`.sha256sum`, `.md` — with where a patch comes from in the first place.
+
+`CLAUDE.md` carries the maintainer/contributor rule, the changelog format and the
+release step, as the WeKan repositories do. The licensing is stated in all three
+places, because this repo mixes two: its own files (workflows, scripts, docs) are MIT,
+while a patch in `dist/` is a modification of Apache-2.0 upstream source and stays
+Apache-2.0, as do the binaries built from it.
+
+</details>
+
+Thanks to above GitHub users for their contributions.

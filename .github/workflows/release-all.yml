@@ -1,0 +1,183 @@
+name: Release All
+
+# Build the MongoDB Database Tools (bsondump, mongodump, mongoexport, mongofiles,
+# mongoimport, mongorestore, mongostat, mongotop) for EVERY platform WeKan ships
+# a bundle for, and attach one <tool>-<arch>[.exe] binary per platform to the
+# GitHub Release of that version - the same shape wekan/FerretDB's and
+# wekan/node-patches' release-all.yml have: individual per-arch assets, no zip,
+# so a consumer downloads only the file for the platform it targets.
+#
+# This repo carries only PATCHES. Each run CLONES the newest UPSTREAM
+# mongodb/mongo-tools <MAJOR>.x RELEASE tag (MAJOR from tools-major.txt), applies
+# the checksum-verified patches in dist/, and builds that
+# (releases/apply-patches.sh). So there is no mongo-tools fork to maintain -
+# 738 directories of Go source that carried no WeKan change at all, only the
+# build below. See docs/Design/Directory-structure.md.
+#
+# ONE JOB BUILDS EVERY PLATFORM, which is where this differs from
+# wekan/node-patches: the tools are pure Go with CGO disabled, so every target is
+# a `GOOS=... GOARCH=... go build` on the ordinary x86_64 runner - no container,
+# no cross toolchain, no emulation, and minutes rather than the hours a V8 build
+# takes. That is also why there is no per-platform patch section here: a single
+# checkout produces all sixteen targets, so a patch that concerns one GOOS or
+# GOARCH carries a Go build constraint instead of living in its own directory
+# (dist/README.md).
+#
+# Because the tools are pure Go, architectures MongoDB ships no prebuilt tools
+# for - riscv64, loong64, and every 32-bit one - are built here too. A target
+# that fails to compile is skipped and reported, never fatal: the build says
+# which, and that is the moment a patch in dist/ becomes worth writing.
+#
+# A release ACCUMULATES: a run's freshly built binaries overwrite their own old
+# copies (gh release upload --clobber) and every other asset is left in place, so
+# all platforms of a version collect on one release across however many runs it
+# takes (that is what Release All Missing is for). Each version has its own tag,
+# so accumulating within a tag only gathers builds of that one version.
+#
+# Usage:
+#   gh workflow run release-all.yml                    # newest upstream 100.x release
+#   gh workflow run release-all.yml -f version=100.17.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Upstream release to build, e.g. 100.17.0 (empty = newest upstream 100.x release)'
+        required: false
+        type: string
+      publish:
+        description: 'Attach the binaries to the GitHub Release'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+# Two runs against one release would race on the same assets. A second run waits
+# for the first rather than clobbering it half way through.
+concurrency:
+  group: mongo-tools-${{ inputs.version || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build every tool for every platform
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # This repo carries only PATCHES, not a mongo-tools tree. So: check the
+      # patches out into _patches/, clone the matching UPSTREAM release into the
+      # workspace root, and apply the patches on top - after which the workspace
+      # is an ordinary mongo-tools source tree and the build below is the same
+      # build the retired fork ran.
+      - name: Check out the patches
+        uses: actions/checkout@v7
+        with:
+          path: _patches
+
+      - name: Fetch upstream mongo-tools and apply the patches
+        run: bash _patches/releases/apply-patches.sh _patches "${{ inputs.version }}"
+
+      # AFTER the clone, not before: go.mod is upstream's, so the toolchain this
+      # pins is the one the release being built asks for. A setup-go step above
+      # the clone would have no go.mod to read.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Cross-compile every tool for every platform
+        run: bash _patches/.github/scripts/build-tools.sh
+
+      - name: Compose the release notes
+        if: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+          MAJOR="${VERSION%%.*}"
+
+          # Upstream's own notes for this exact version, out of upstream's
+          # CHANGELOG.md at the tag. Sections are `## <version>` and run to the
+          # next `## `. FETCHED at the tag rather than read from the workspace so
+          # this reads the changelog of exactly the source that was built, and
+          # `|| true` because notes are worth having and not worth failing a
+          # publish over.
+          URL="https://raw.githubusercontent.com/mongodb/mongo-tools/${VERSION}/CHANGELOG.md"
+          : > upstream-notes.md
+          curl -fsSL --retry 3 --retry-delay 2 -o upstream-changelog.md "$URL" || true
+          if [ -s upstream-changelog.md ]; then
+            awk -v ver="$VERSION" '
+              $0 == "## " ver { inblock=1; next }
+              inblock && /^## / { exit }
+              inblock { print }
+            ' upstream-changelog.md > upstream-notes.md
+            sed -i -e '/./,$!d' upstream-notes.md
+          fi
+          [ -s upstream-notes.md ] || \
+            echo "::warning::No $VERSION section in upstream's CHANGELOG.md ($URL) - the notes will carry the header only."
+
+          # What this run produced, for the platform line. The checksums are not
+          # platforms, so they are filtered out the way node-patches' publish job
+          # filters its own.
+          plats="$( (ls out 2>/dev/null || true) | grep -v '\.sha256sum$' \
+            | sed -n 's#^mongodump-##p' | sed 's#\.exe$##' | sort -u | tr '\n' ' ')"
+
+          {
+            echo "MongoDB Database Tools 🍃"
+            echo ""
+            echo "One \`<tool>-<arch>[.exe]\` binary per platform - bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop - for use with WeKan and FerretDB v1."
+            echo ""
+            echo "Platforms: ${plats% }"
+            echo ""
+            echo "Built by Release All from wekan/mongo-tools-patches: upstream mongodb/mongo-tools of this version plus the patches in dist/, cross-compiled with CGO disabled. A release ACCUMULATES - a re-run replaces the binaries it rebuilds and leaves the rest, so every platform of a version collects on one release. Not every tool compiles for every platform; the build log says which were skipped and why."
+            echo ""
+            echo "Every binary has a \`<name>.sha256sum\` beside it. To check a download:"
+            echo ""
+            echo '```'
+            echo "curl -fsSLO https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/mongodump-amd64"
+            echo "curl -fsSLO https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/mongodump-amd64.sha256sum"
+            echo "sha256sum -c mongodump-amd64.sha256sum"
+            echo '```'
+            echo ""
+            echo "Cloned from (shallow, single branch, --depth 1):"
+            echo ""
+            echo "| Upstream | Branch | Tag | Commit |"
+            echo "|----------|--------|-----|--------|"
+            echo "| [mongodb/mongo-tools](https://github.com/mongodb/mongo-tools) | ${MAJOR}.x | [${VERSION}](https://github.com/mongodb/mongo-tools/releases/tag/${VERSION}) | [\`${UPSTREAM_COMMIT}\`](https://github.com/mongodb/mongo-tools/commit/${UPSTREAM_COMMIT}) |"
+            echo ""
+            cat upstream-notes.md
+          } > release-notes.md
+
+          echo "----- release notes for $VERSION -----"
+          cat release-notes.md
+
+      - name: Create or update the release, with a binary per tool per platform
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=( out/* )
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "::error::No binaries were built - nothing to publish."
+            exit 1
+          fi
+          # --clobber lets a re-run replace an asset of the same name in place
+          # rather than failing the upload on it. Assets this run did NOT build
+          # are LEFT ALONE: the release ACCUMULATES every platform of this
+          # version, which is the whole point of Release All Missing - one target
+          # that fails today must not cost the release the binaries the others
+          # already published.
+          # --target pins a NEW tag to the commit that was built rather than to
+          # whatever the default branch has moved to since.
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+            gh release edit   "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --title "$RELEASE_TAG" \
+              --target "${{ github.sha }}" \
+              --notes-file release-notes.md
+          fi
+          echo "The release now carries these assets (accumulated across runs):"
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name'

@@ -1,0 +1,124 @@
+name: Release All Missing
+
+# The same build as release-all.yml, over only what the release does NOT already
+# have.
+#
+# WHY: a release of this repo carries eight tools times sixteen platforms - up to
+# 128 binaries, each with a .sha256sum beside it. When one upload fails, or a
+# platform is added, or a run is cancelled half way, the fix used to be to run
+# the whole thing again: a full cross-compile of everything, and 128 --clobber
+# uploads to replace bytes that were already correct. This builds the gap.
+#
+# HOW: ask the release what it already has (.github/scripts/release-assets.sh),
+# hand that list to the SAME build script release-all.yml uses
+# (.github/scripts/build-tools.sh, via SKIP_LIST), and upload what comes out. The
+# upstream clone and the patch apply are the SAME script too
+# (releases/apply-patches.sh). There is no second copy of the target list, the
+# ldflags or the apply loop here - that is the point of the split, because a
+# "build the missing ones" workflow that drifts from "build all of them"
+# produces binaries that differ from their neighbours on the same release.
+#
+# (wekan/node-patches solves the same problem by CALLING release-all.yml as a
+# reusable workflow with a platform filter. It has to: its build is thirteen
+# platform-specific jobs with their own containers and compile flags. Here the
+# build is one script and one job, so sharing the script is enough - and it
+# avoids the concurrency-group deadlock that indirection brings with it.)
+#
+# A tool counts as present only when BOTH its binary and its .sha256sum are on
+# the release. A binary whose checksum upload failed is exactly the
+# half-published state this repairs, and calling it present would leave it
+# broken forever.
+#
+# Not every tool compiles for every platform (the log says which), so a binary
+# that is absent from the release AND does not compile stays absent - this
+# workflow reports it and does not fail. "Missing" here means "missing and
+# buildable".
+#
+# Usage:
+#   gh workflow run release-all-missing.yml                    # newest upstream 100.x release
+#   gh workflow run release-all-missing.yml -f version=100.17.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Upstream release to complete, e.g. 100.17.0 (empty = newest upstream 100.x release)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+# A DISTINCT group from release-all.yml's, so a fill-in run and a full run
+# serialize against their own kind without deadlocking on each other.
+concurrency:
+  group: mongo-tools-missing-${{ inputs.version || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-missing:
+    name: build what the release is missing
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the patches
+        uses: actions/checkout@v7
+        with:
+          path: _patches
+
+      - name: Fetch upstream mongo-tools and apply the patches
+        run: bash _patches/releases/apply-patches.sh _patches "${{ inputs.version }}"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: What the release already has
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sh _patches/.github/scripts/release-assets.sh "$RELEASE_TAG" | sort > existing.txt
+          n="$(wc -l < existing.txt | tr -d ' ')"
+          echo "$RELEASE_TAG already carries $n asset(s)."
+          echo "### $RELEASE_TAG: $n asset(s) already published" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build only what is missing
+        env:
+          SKIP_LIST: existing.txt
+        run: bash _patches/.github/scripts/build-tools.sh
+
+      - name: Upload the missing binaries, and say what was filled in
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=( out/* )
+
+          if [ "${#assets[@]}" -eq 0 ]; then
+            # The good outcome, and NOT a failure: the release is complete.
+            echo "::notice::$RELEASE_TAG is already complete - nothing to build."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Nothing was missing. The release is complete." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # No --clobber: everything here was absent from the release, so an
+          # upload that would overwrite something means the release changed
+          # under this run and is worth failing on rather than silently
+          # replacing a neighbour's bytes.
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${assets[@]}"
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" --title "$RELEASE_TAG" \
+              --target "${{ github.sha }}" \
+              --notes "MongoDB Database Tools built from upstream mongodb/mongo-tools $RELEASE_TAG plus the patches in wekan/mongo-tools-patches. Created by Release All Missing because no release existed for this tag."
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Added ${#assets[@]} file(s):" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "${assets[@]#out/}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Added ${#assets[@]} file(s) to $RELEASE_TAG."
