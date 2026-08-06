@@ -59,10 +59,6 @@ Investigated but not finished, with findings recorded for whoever picks them up
 next. Entries that have since been done are removed from this list as they are
 handled (their commits carry the short description and link).
 
-- WeKan's own release build still downloads the tools from
-  [wekan/mongo-tools](https://github.com/wekan/mongo-tools) releases. Switching those
-  URLs to this repo belongs in the WeKan repository, and it waits until this repo has
-  published a release to point at.
 - No full build has run in the development sandbox — it has no Go toolchain — so the
   compile itself is covered by a stubbed `go` in `tests/workflow-logic.sh` and by the
   first CI run, not by a local build.
@@ -105,7 +101,7 @@ MongoDB itself ships no tools for several of these and an honest gap beats a red
 
 The release notes carry the platform list, the three commands that verify a download,
 a provenance table (upstream repo, branch, tag, exact commit) and upstream's own
-CHANGELOG section for that version, fetched from the tag. Assets go up with
+CHANGELOG section for that version. Assets go up with
 `--clobber`, so a release accumulates: a rebuilt binary overwrites only itself. The
 release is tagged with the upstream version, because that is what it is — upstream at
 that release plus the patches in `dist/`.
@@ -259,6 +255,59 @@ release step, as the WeKan repositories do. The licensing is stated in all three
 places, because this repo mixes two: its own files (workflows, scripts, docs) are MIT,
 while a patch in `dist/` is a modification of Apache-2.0 upstream source and stays
 Apache-2.0, as do the binaries built from it.
+
+</details>
+
+and fixes what the first run turned up:
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/dbd75ef">The release is published to this repository, not to the upstream one the workspace points at</a>. Thanks to xet7.</summary>
+
+The first run built all 128 binaries and then failed on the upload:
+
+```
+HTTP 403: Resource not accessible by integration
+(https://api.github.com/repos/mongodb/mongo-tools/releases)
+```
+
+`gh` works out which repository to act on from the git remote of the working
+directory - and by publish time the working directory IS the upstream clone,
+because that is the whole arrangement here: the patches sit in `_patches/` and
+upstream is moved to the workspace root so the build sees an ordinary
+mongo-tools tree. Its origin is `mongodb/mongo-tools`, so `gh release create` was trying to
+publish onto MongoDB's repository, which this token has no business writing to.
+
+Every step that runs `gh` now sets `GH_REPO` to this repository. `gh` reads that
+natively, so `release-assets.sh` is covered by the same setting instead of
+growing a flag of its own - and its header says why it is not optional.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/dbd75ef">Upstream's own release notes are taken from where they are actually written</a>. Thanks to xet7.</summary>
+
+The same run warned that upstream's `CHANGELOG.md` has no 100.17.0 section, and
+it was right: upstream tags the release and writes the entry AFTERWARDS. Tag
+`100.17.0` is commit `0b142f65` ("100.17.0 release: BOM & SARIF files"), and the
+entry arrived in `9cd3c4a8` ("TOOLS-4197 Update changelog for 100.17.0"), which
+comes after it - so the notes carried the header and nothing else.
+
+The lookup tries the tag first, because when the entry is there it is the
+changelog of precisely the source that was built, and then the default branch,
+which is where it actually is. Only when neither has it does the warning stand.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/dbd75ef">Guards for both, including the notes extractor run against a fixture changelog</a>. Thanks to xet7.</summary>
+
+`tests/workflow-logic.sh` now checks that every workflow step carrying a
+`GH_TOKEN` also carries a `GH_REPO` - a step with the one and not the other is
+the 403 above - and that the notes lookup names a fallback ref at all. The
+extraction itself is not restated in the test: the workflow's own `awk` program
+is lifted out and run against a fixture `CHANGELOG.md` with three sections, to
+show it takes the version's own section and stops at the next one rather than
+running on into the neighbouring release.
 
 </details>
 
