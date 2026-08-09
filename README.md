@@ -21,3 +21,7 @@ which carried no source change of its own — only this build. Same model as
 This repository's own files (workflows, scripts, docs) are MIT — see
 [LICENSE](LICENSE). Upstream mongo-tools is Apache-2.0, and a patch in `dist/` is a
 modification of that source: it, and the binaries built from it, stay Apache-2.0.
+
+Maintainer and contributor rules — who commits, as whom, and how the CHANGELOG is
+written — are in [WeKan's CLAUDE.md and AGENTS.md](https://github.com/wekan/wekan),
+which cover every repository WeKan clones into its `.tools/` directory.

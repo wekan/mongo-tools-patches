@@ -6,10 +6,16 @@ upstream at a release tag, applies the patches here, builds, and publishes. This
 the same model as [wekan/node-patches](https://github.com/wekan/node-patches) and, in
 turn, as [Betterbird/thunderbird-patches](https://github.com/Betterbird/thunderbird-patches).
 
+The maintainer and contributor rules for this repository — who commits, as whom,
+and how the CHANGELOG is written — live in
+[WeKan's CLAUDE.md and AGENTS.md](https://github.com/wekan/wekan), which cover
+every repository WeKan clones into its `.tools/` directory. There is no second
+copy of them here.
+
 ```
 mongo-tools-patches/
-├── CHANGELOG.md                       Release notes, WeKan-changelog format.
-├── CLAUDE.md                          Maintainer/contributor rules for this repo.
+├── CHANGELOG.md                       Release notes, in the format this file's own
+│                                      existing entries use.
 ├── tools-major.txt                    The Database Tools major line to track (100).
 ├── .github/
 │   ├── workflows/
