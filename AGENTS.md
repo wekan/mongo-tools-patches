@@ -12,7 +12,33 @@ retired in favour of this repo — it changed nothing in upstream's Go source, i
 carried the build — so a change that used to be a commit on the fork is now either a
 patch here or a change to the build here.
 
-## First: are you the maintainer or a contributor?
+## First: who maintains this, and who is committing?
+
+**This repository, WeKan, and the other repositories WeKan clones into its `.tools/`
+directory are maintained by Lauri Ojansivu (xet7) `<x@xet7.org>`** —
+[wekan/wekan](https://github.com/wekan/wekan),
+[wekan/FerretDB](https://github.com/wekan/FerretDB),
+[wekan/node-patches](https://github.com/wekan/node-patches) and
+[wekan/mongo-tools-patches](https://github.com/wekan/mongo-tools-patches). Work done
+on the maintainer's behalf is committed as **`Lauri Ojansivu <x@xet7.org>`** — that
+author, in every one of those repositories, every time. Two rules follow from it and
+neither has an exception:
+
+- **Never attribute a commit to an AI.** No `Co-Authored-By:` trailer, no "Generated
+  with", no assistant or model name — not in the commit message, not in a pull-request
+  body, not in the CHANGELOG. WeKan's
+  [CODE_OF_CONDUCT.md](https://github.com/wekan/wekan/blob/main/CODE_OF_CONDUCT.md)
+  is where this comes from: *"For pull requests, mention only those participants that
+  are **human**."* A `Thanks to ... and xet7 !` line credits people, never a tool.
+- **If the git identity is missing or wrong in this checkout, set it; do not commit
+  under something else.** This repository is normally cloned by WeKan's `build.sh`
+  into `.tools/`, and such a clone can come up with no `user.name`/`user.email` of its
+  own — which would silently author a commit as whatever the machine's default is:
+
+  ```
+  git config user.name  'Lauri Ojansivu'
+  git config user.email 'x@xet7.org'
+  ```
 
 Check the current git identity before committing:
 
@@ -20,14 +46,16 @@ Check the current git identity before committing:
 git config user.name && git config user.email
 ```
 
-- **Maintainer mode** — ONLY when the identity is exactly
-  `Lauri Ojansivu <x@xet7.org>`. Then, and only then: commit **directly to the
-  current branch** as `Lauri Ojansivu <x@xet7.org>` with no AI trailer and no pull
-  request, and the release step below is available. Per the standing rule you still
-  **commit only; do not push** unless explicitly asked.
-- **Contributor mode** — any other git identity. Then: do **not** commit directly and
-  do **not** run the release step. Make changes on a branch and open a **pull
-  request** for the maintainer to review.
+- **Maintainer mode** — the identity is `Lauri Ojansivu <x@xet7.org>`, or it is unset
+  in a checkout of this repository, which means it is to be SET to that as above
+  rather than worked around. Then: commit **directly to the current branch** as
+  `Lauri Ojansivu <x@xet7.org>` with no AI trailer and no pull request, and the
+  release step below is available. Per the standing rule you still **commit only; do
+  not push** unless explicitly asked.
+- **Contributor mode** — the identity is somebody ELSE, in a fork or a clone of your
+  own. Then: do **not** commit directly and do **not** run the release step. Make
+  changes on a branch and open a **pull request** for the maintainer to review, and
+  keep that pull request free of AI attribution too.
 
 ## What is in this repo
 
@@ -172,7 +200,8 @@ Fixes #1234,
 Commit as `Lauri Ojansivu <x@xet7.org>` (maintainer only), with **no**
 "Co-Authored-By" or any other AI trailer, directly to `main`. **Do not make pull
 requests** (contributors do the opposite). **Commit only. Do not push** unless
-explicitly asked.
+explicitly asked. Same rule as the top section, restated where the message is
+written: one author, and no AI attribution in any part of it.
 
 ## Making a release  **[maintainer only]**
 
