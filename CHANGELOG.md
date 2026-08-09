@@ -86,7 +86,7 @@ This release creates the repository:
 **The build** - what clones upstream, what compiles, and what a release carries.
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">Release All builds every tool for every platform from upstream plus the patches</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">Release All builds every tool for every platform from upstream plus the patches</a>. Thanks to xet7.</summary>
 
 One `workflow_dispatch` run checks the patches out into `_patches/`, clones the
 newest upstream `100.x` release beside them, applies the patches, pins the Go
@@ -110,7 +110,7 @@ that release plus the patches in `dist/`.
 </details>
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">Release All Missing builds only the binaries a release does not already carry</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">Release All Missing builds only the binaries a release does not already carry</a>. Thanks to xet7.</summary>
 
 A release carries up to 128 assets — eight tools times sixteen platforms, each with a
 `.sha256sum`. When one upload fails, or a platform is added, or a run is cancelled
@@ -131,7 +131,7 @@ caller/callee concurrency-group deadlock that indirection brought with it there.
 </details>
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The upstream release is resolved from a major line instead of being typed into a workflow</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">The upstream release is resolved from a major line instead of being typed into a workflow</a>. Thanks to xet7.</summary>
 
 `releases/newest-release.sh` reads `tools-major.txt` (`100`) and asks upstream for the
 newest `100.<MINOR>.<PATCH>` release tag. "Release" means a published tag — never a
@@ -149,7 +149,7 @@ up. A new major is a one-line edit to `tools-major.txt`.
 </details>
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The clone, the checksum check and the patch apply are one script both workflows run</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">The clone, the checksum check and the patch apply are one script both workflows run</a>. Thanks to xet7.</summary>
 
 `releases/apply-patches.sh` clones upstream at the resolved tag, moves the tree into
 the workspace root beside the patches checkout, verifies each patch's `.sha256sum`
@@ -172,7 +172,7 @@ script fails if that second move ever comes back.
 **The patches** - the section, and why there are none in it yet.
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The fork this replaces changed no upstream source, so the patch section starts empty</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">The fork this replaces changed no upstream source, so the patch section starts empty</a>. Thanks to xet7.</summary>
 
 `wekan/mongo-tools` was a fork of a large Go project, and every one of its six commits
 was the build workflow and its changelog. The Go source beside them was upstream's,
@@ -187,7 +187,7 @@ tool needs one to compile for a platform upstream does not build, and
 </details>
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">A patch for one platform carries a Go build constraint instead of a section of its own</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">A patch for one platform carries a Go build constraint instead of a section of its own</a>. Thanks to xet7.</summary>
 
 node-patches organises patches into six sections with an apply-map, because each of
 its thirteen platforms is its own build job with its own checkout — so a patch can be
@@ -210,7 +210,7 @@ is a patch that needs it, not before.
 the next reader is told.
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">workflow-logic.sh runs the repo's own scripts against a fixture upstream and a stubbed Go</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">workflow-logic.sh runs the repo's own scripts against a fixture upstream and a stubbed Go</a>. Thanks to xet7.</summary>
 
 No network, a couple of seconds, and it does not restate the logic in a test and then
 check the copy — the logic lives in scripts and this runs those scripts. It resolves
@@ -228,7 +228,7 @@ produced nothing at all must fail rather than publish an empty release.
 </details>
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">patches-apply.sh applies every patch to the upstream release the build would clone</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">patches-apply.sh applies every patch to the upstream release the build would clone</a>. Thanks to xet7.</summary>
 
 The question this repo lives or dies on is whether its patches still apply, and the
 answer otherwise arrives as a `git apply` error in a build log nobody is watching.
@@ -244,7 +244,7 @@ without network says so instead of reporting a green run it did not do.
 </details>
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HEAD">The design docs, README and CLAUDE.md say what the repo is and how to change it</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3291cd5">The design docs, README and CLAUDE.md say what the repo is and how to change it</a>. Thanks to xet7.</summary>
 
 `docs/Design/Directory-structure.md` is the layout, `How-the-build-works.md` the
 clone→verify→apply→build→publish flow and what to do when upstream releases or a patch
