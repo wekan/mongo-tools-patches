@@ -76,7 +76,7 @@ every target it could not compile, and that report is the shopping list. The rul
   `.patch` without a matching `.sha256sum` (the checksum is verified before the patch
   is applied), and the `.md` documents it for the changelog and the next reader.
 - **There is one section, `dist/all/`, and a per-platform patch says so in Go.** One
-  checkout here cross-compiles all sixteen targets, so a patch cannot be applied to
+  checkout here cross-compiles all seventeen targets, so a patch cannot be applied to
   one platform's tree only; a change that concerns one GOOS or GOARCH carries a build
   constraint (`//go:build loong64`, a `_linux_386.go` filename, a `runtime.GOARCH`
   branch). [dist/README.md](dist/README.md) says what would bring sections back and
@@ -180,7 +180,7 @@ explicitly asked.
   no `version` input to build the newest upstream `<MAJOR>.x` release (from
   `tools-major.txt`), or `-f version=100.17.0` to pin one. It clones upstream at that
   release tag, verifies+applies the patches, cross-compiles the eight tools for the
-  sixteen platforms, and uploads each `<tool>-<arch>[.exe]` and its `.sha256sum` to a
+  seventeen platforms, and uploads each `<tool>-<arch>[.exe]` and its `.sha256sum` to a
   release tagged with the **upstream version**, accumulating (a rebuilt binary
   clobbers only its own asset).
 - Run **Release All Missing** to fill in only what a release does not yet carry — it

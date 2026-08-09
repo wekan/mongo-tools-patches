@@ -2,7 +2,7 @@
 # What the release workflows do, checked WITHOUT a runner and without the
 # network.
 #
-# The build itself is eight tools times sixteen platforms on a GitHub runner, so
+# The build itself is eight tools times seventeen platforms on a GitHub runner, so
 # the failures worth catching here are the ones that kill a run in its first
 # seconds - and in the sibling repo that is exactly what happened: wekan/node-patches'
 # first run died in every one of its thirteen builds, three seconds after cloning,
@@ -216,9 +216,12 @@ mkdir -p "$BUILD"
 
 bins="$(find "$BUILD/out" -type f ! -name '*.sha256sum' 2>/dev/null | wc -l | tr -d ' ')"
 sums="$(find "$BUILD/out" -type f -name '*.sha256sum' 2>/dev/null | wc -l | tr -d ' ')"
-# 8 tools x 16 targets = 128, less the one target stubbed to fail.
-[ "$bins" = "127" ] && ok "8 tools x 16 targets, less the one that does not compile ($bins)" \
-                    || fail "expected 127 binaries, got $bins"
+# 8 tools x 17 targets = 136, less the one target stubbed to fail. It was 16
+# targets until armv6 (GOARM=6, Raspberry Pi 1 and Zero) was added beside armhf
+# to match wekan/FerretDB's set - a deliberate new target, so the expected count
+# moves with it rather than the check being loosened.
+[ "$bins" = "135" ] && ok "8 tools x 17 targets, less the one that does not compile ($bins)" \
+                    || fail "expected 135 binaries, got $bins"
 [ "$sums" = "$bins" ] && ok "a .sha256sum beside every binary ($sums)" \
                       || fail "$bins binaries but $sums checksums"
 [ -e "$BUILD/out/mongostat-loong64" ] \

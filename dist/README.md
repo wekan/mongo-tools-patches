@@ -15,7 +15,7 @@ carries forward across upstream releases until the day it stops applying.
 `wekan/node-patches` has six sections and an apply-map, because each of its
 thirteen platforms is **its own build job with its own checkout** — so a patch can
 be applied to the i386 tree and not to the arm64 one. Here **one checkout
-cross-compiles all sixteen targets** (pure Go, `CGO_ENABLED=0`, one
+cross-compiles all seventeen targets** (pure Go, `CGO_ENABLED=0`, one
 `GOOS=… GOARCH=… go build` per target), so there is no per-platform tree to apply
 a patch to. A patch that concerns one platform says so **in Go**, with a build
 constraint:

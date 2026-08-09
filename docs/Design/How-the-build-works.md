@@ -35,7 +35,7 @@ platform and uploads the binaries to that version's GitHub Release.
 3. **Pin the toolchain** — `actions/setup-go` with `go-version-file: go.mod`, run
    **after** the clone, because that `go.mod` is upstream's: the Go version the build
    uses is the one the release being built asks for.
-4. **Build** — `.github/scripts/build-tools.sh`. Eight tools × sixteen targets, each
+4. **Build** — `.github/scripts/build-tools.sh`. Eight tools × seventeen targets, each
    a `CGO_ENABLED=0 GOOS=… GOARCH=… go build -trimpath -ldflags "…"`, into `out/`.
    No containers, no cross toolchains, no emulation: pure Go cross-compiles from the
    ordinary x86_64 runner, which is why one job covers every platform and finishes in
@@ -52,7 +52,7 @@ platform and uploads the binaries to that version's GitHub Release.
 
 ## Release All Missing (`.github/workflows/release-all-missing.yml`)
 
-A release carries up to 128 assets. Rebuilding all of them to obtain the one whose
+A release carries up to 136 assets. Rebuilding all of them to obtain the one whose
 upload failed replaces bytes that were already correct, so this builds the gap:
 
 1. **Ask the release what it has** — `.github/scripts/release-assets.sh`.
