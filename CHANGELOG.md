@@ -311,4 +311,18 @@ running on into the neighbouring release.
 
 </details>
 
+and documents how to work on this repository:
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/320ae6d">AGENTS.md — what a contributor, human or otherwise, has to know before touching a patch</a>. Thanks to xet7.</summary>
+
+A patches-only repository is unusual enough that the obvious first move is the
+wrong one: there is no mongo-tools source here to edit, so a change is a change
+to a `.patch` file, and it has to apply to a tag nobody has cloned yet.
+`AGENTS.md` writes that down — what the patches are for, that they are applied
+to the newest upstream RELEASE tag rather than a branch head, how to verify one
+applies before pushing, and which workflow builds the binaries WeKan embeds.
+
+</details>
+
 Thanks to above GitHub users for their contributions.
