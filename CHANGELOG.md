@@ -29,8 +29,8 @@ in by the build from the tag it cloned.
   its tag list still carries the old `r4.2.x` ones, so the version resolution takes
   the newest `<MAJOR>.<MINOR>.<PATCH>` of the tracked major and nothing else.
 - There is ONE patch section, `dist/all/`, applied to every target. One checkout
-  cross-compiles all sixteen platforms here, so a patch that concerns one GOOS or
-  GOARCH carries a Go build constraint rather than a section of its own. See
+  cross-compiles all seventeen platforms here, so a patch that concerns one GOOS
+  or GOARCH carries a Go build constraint rather than a section of its own. See
   [dist/README.md](dist/README.md).
 - Each patch is a `*.patch` file with a `*.sha256sum` (the checksum of the patch file)
   and a `*.md` (what the patch does). The build clones upstream at the release tag,
@@ -42,11 +42,11 @@ in by the build from the tag it cloned.
   clobbers its own asset and leaves the rest alone.
 - The eight tools: `bsondump`, `mongodump`, `mongoexport`, `mongofiles`,
   `mongoimport`, `mongorestore`, `mongostat`, `mongotop`.
-- The sixteen platforms: `amd64`, `arm64`, `armhf`, `armel`, `i386`, `ppc64le`,
-  `s390x`, `riscv64`, `loong64`, `win64`, `win-arm64`, `win32`, `mac-amd64`,
-  `mac-arm64`, `freebsd-amd64`, `freebsd-arm64`. The `<arch>` tokens match
-  wekan/FerretDB's `ferretdb-<arch>` naming, so one token names a platform's whole
-  set.
+- The seventeen platforms: `amd64`, `arm64`, `armhf`, `armv6`, `armel`, `i386`,
+  `ppc64le`, `s390x`, `riscv64`, `loong64`, `win64`, `win-arm64`, `win32`,
+  `mac-amd64`, `mac-arm64`, `freebsd-amd64`, `freebsd-arm64`. The `<arch>`
+  tokens match wekan/FerretDB's `ferretdb-<arch>` naming, so one token names a
+  platform's whole set.
 
 </details>
 
@@ -71,11 +71,12 @@ handled (their commits carry the short description and link).
 fork held 738 directories of upstream Go source it never changed — its six commits
 were all the **build** — so this repo keeps the build and drops the source: **Release
 All** and **Release All Missing** clone the newest upstream `100.x` release, verify
-and apply the patches in **`dist/`**, cross-compile the **eight tools** for **sixteen
-platforms** with CGO disabled, and publish one `<tool>-<arch>` binary and
-`.sha256sum` per platform. Same model as **wekan/node-patches**, with the one
-difference the language forces: pure Go cross-compiles from a single checkout, so
-there is one patch section instead of six and one build job instead of thirteen.
+and apply the patches in **`dist/`**, cross-compile the **eight tools** for
+**seventeen platforms** with CGO disabled, and publish one `<tool>-<arch>`
+binary and `.sha256sum` per platform. Same model as **wekan/node-patches**, with
+the one difference the language forces: pure Go cross-compiles from a single
+checkout, so there is one patch section instead of six and one build job instead
+of fourteen.
 Below that: the two scripts both workflows share so they cannot drift, the two **test
 scripts** that run the real code offline against a fixture upstream and a stubbed Go,
 and the design docs and maintainer instructions the repo is set up with.
@@ -93,10 +94,10 @@ toolchain from the **upstream** `go.mod` (which is why `setup-go` runs after the
 clone, not before), and cross-compiles the eight tools for the sixteen platforms into
 `out/` with `CGO_ENABLED=0`.
 
-It is ONE job, where wekan/node-patches needs thirteen: the tools are pure Go, so
-every target is an ordinary `GOOS=… GOARCH=… go build` on the x86_64 runner — no
-container, no cross toolchain, no emulation, minutes instead of the hours a V8 build
-takes. A target that does not compile is skipped and reported, never fatal, because
+It is ONE job, where wekan/node-patches needs fourteen: the tools are pure Go,
+so every target is an ordinary `GOOS=… GOARCH=… go build` on the x86_64 runner —
+no container, no cross toolchain, no emulation, minutes instead of the hours a V8
+build takes. A target that does not compile is skipped and reported, never fatal, because
 MongoDB itself ships no tools for several of these and an honest gap beats a red run.
 
 The release notes carry the platform list, the three commands that verify a download,
@@ -123,8 +124,8 @@ upload that would overwrite something means the release changed under the run, a
 that is worth failing on. Nothing to build at all is a notice, not a failure.
 
 It shares the scripts rather than calling Release All as a reusable workflow, which
-is what node-patches has to do with its thirteen platform-specific jobs. Here the
-build is one script, so sharing the script is enough — and it avoids the
+is what node-patches has to do with its fourteen platform-specific jobs. Here
+the build is one script, so sharing the script is enough — and it avoids the
 caller/callee concurrency-group deadlock that indirection brought with it there.
 
 </details>
@@ -258,6 +259,23 @@ Apache-2.0, as do the binaries built from it.
 
 </details>
 
+and adds a seventeenth platform:
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/2d3d2cb">armv6 — GOARM=6, matching wekan/FerretDB's new target</a>. Thanks to xet7.</summary>
+
+The arch tokens and the target set here are deliberately the same as
+[wekan/FerretDB](https://github.com/wekan/FerretDB)'s `build.sh`, so that
+`ferretdb-<arch>` and `mongodump-<arch>` line up and one token names a
+platform's whole set — which is why armv6 is added on both sides at once, for
+the ARMv6 WeKan bundle (Raspberry Pi 1 and Zero) that both of them feed.
+
+`armel` is `GOARM=5` and would run on an ARMv6 board, which is what makes it
+look like a substitute: it does floating point in software, while `GOARM=6` uses
+the VFPv2 the hardware actually has. `armel` stays for genuine ARMv5.
+
+</details>
+
 and fixes what the first run turned up:
 
 <details>
@@ -322,6 +340,26 @@ to a `.patch` file, and it has to apply to a tag nobody has cloned yet.
 `AGENTS.md` writes that down — what the patches are for, that they are applied
 to the newest upstream RELEASE tag rather than a branch head, how to verify one
 applies before pushing, and which workflow builds the binaries WeKan embeds.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/9e0f847">Every place that counts the targets says seventeen, and the test expects the binaries armv6 adds</a>. Thanks to xet7.</summary>
+
+Adding armv6 above made the target count wrong everywhere it was written out:
+`AGENTS.md`, `CLAUDE.md`, `dist/README.md`, both design docs and both workflows
+said sixteen platforms, and the release-capacity number that follows from it —
+eight tools times the targets — said 128 where it is now 136.
+
+`tests/workflow-logic.sh` was not merely stale, it was **failing**: it runs the
+real `build-tools.sh` against a stubbed `go` and asserts the binary count, which
+armv6 moved from 127 to 135 (one target is stubbed to fail on purpose, and that
+part still holds). The expected number moves with the target list rather than
+the check being loosened, and the comment beside it says why it changed, so the
+next reader sees a decision instead of a suspicious edit.
+
+Left alone on purpose: *"the first run built all 128 binaries and then failed on
+the upload"*. That is what that run built.
 
 </details>
 
