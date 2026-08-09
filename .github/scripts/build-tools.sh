@@ -43,10 +43,15 @@ mkdir -p "$out"
 TOOLS="bsondump mongodump mongoexport mongofiles mongoimport mongorestore mongostat mongotop"
 # name  goos  goarch  goarm   ('-' = no GOARM). Same arch tokens + set as
 # wekan/FerretDB's build.sh so ferretdb-<arch> and mongodump-<arch> match.
+#
+# armv6 is GOARM=6, hard-float VFPv2 - Raspberry Pi 1 and Zero. armel below is
+# GOARM=5 and WOULD run on those boards, in software floating point, so it is
+# not a substitute for them; it stays for genuine ARMv5.
 TARGETS="
   amd64 linux amd64 -
   arm64 linux arm64 -
   armhf linux arm 7
+  armv6 linux arm 6
   armel linux arm 5
   i386 linux 386 -
   ppc64le linux ppc64le -
