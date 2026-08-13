@@ -383,3 +383,51 @@ still finds them.
 </details>
 
 Thanks to above GitHub users for their contributions.
+
+and raises what the published binaries are built with:
+
+**The security floor** - what a scan reads out of the finished binaries, and how
+the build keeps it from going backwards.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HASH">The toolchain and the vendored dependencies are raised to a floor before the tools are compiled</a>. Thanks to xet7.</summary>
+
+A container scan of `ghcr.io/wekan/wekan:v10.91` reads every binary in the
+image, and the nine tools this repository publishes each reported the same 37
+findings, because they are the same build:
+
+| What | The binaries carried | Fixed in |
+| --- | --- | --- |
+| Go toolchain (`stdlib`) | 1.25.9 | 1.25.12 |
+| `golang.org/x/crypto` | 0.45.0 | 0.52.0 |
+| `golang.org/x/net` | 0.47.0 | 0.56.0 |
+| `golang.org/x/text` | 0.31.0 | 0.39.0 |
+| `golang.org/x/sys` | 0.38.0 | 0.44.0 |
+
+None of that is a patch that was missed. A release is vendored at the moment it
+is cut and the advisories arrive afterwards, and those versions are simply what
+upstream 100.17.0 vendored: the toolchain comes from upstream's `go.mod`, which
+is exactly why `setup-go` runs after the clone, and `x/crypto` and the rest
+come out of upstream's `vendor/`. **Building the newest upstream release is what
+fixes them** - 100.18.0 builds with Go 1.26.5 and vendors `x/crypto` 0.54.0,
+`x/net` 0.56.0, `x/text` 0.40.0 and `x/sys` 0.47.0, every one above the line
+above - and the version resolution already takes the newest `100.x`, so a
+rebuild is the fix.
+
+What this adds is that the fix cannot be undone by accident.
+[`releases/security-minimums.txt`](releases/security-minimums.txt) is a FLOOR,
+and `releases/security-bumps.sh` applies it in the two places it has to be
+applied: `toolchain` rewrites the `go` line **before** `setup-go` reads it,
+since that is what decides which Go is installed and therefore what `stdlib`
+says in the finished binary, and `vendor` runs **after** it, because `go get`,
+`go mod tidy` and `go mod vendor` are go commands. A module upstream vendored at
+or above its line is left alone and says so; nothing is ever dragged backwards.
+On 100.18.0 the whole step is a no-op, which is the intended outcome - it earns
+its place on a build pinned to an older tag with `version-override`, and on the
+next advisory that lands under a release already vendored below it.
+
+A `.patch` could not do this. `vendor/` is thousands of files, and a patch
+against it would stop applying at the next upstream release; re-resolving keeps
+working as upstream moves.
+
+</details>

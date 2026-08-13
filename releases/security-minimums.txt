@@ -1,0 +1,30 @@
+# Minimum versions the published tools are built with, applied to the upstream
+# tree by releases/security-bumps.sh. One `module version` per line; `go` is the
+# toolchain, and it is read before actions/setup-go picks a Go to install.
+#
+# A line is here because a scan of the binaries reported the version upstream
+# vendored, with a fixed release available:
+#
+#   go            1.25.9 -> stdlib findings, incl. CVE-2026-39822 and
+#                 CVE-2026-42505, fixed in 1.25.12
+#   x/crypto      0.45.0 -> eleven findings, all fixed in 0.52.0
+#   x/net         0.47.0 -> seven findings; the last of them, CVE-2026-46600,
+#                 needs 0.56.0
+#   x/text        0.31.0 -> CVE-2026-56852, fixed in 0.39.0
+#   x/sys         0.38.0 -> CVE-2026-39824, fixed in 0.44.0
+#
+# The version here is the FIX version, so this file is a floor and not a
+# treadmill. Upstream 100.18.0 already builds with go 1.26.5 and vendors
+# x/crypto 0.54.0, x/net 0.56.0, x/text 0.40.0 and x/sys 0.47.0 - every one of
+# them above its line here - so on that release this script raises nothing at
+# all, which is the intended outcome: the scanned binaries came from an OLDER
+# upstream release, and building the newest is what fixes them. What the floor
+# does is make that a guarantee rather than a coincidence, for a build pinned to
+# an older tag with `version-override`, and for the next advisory that lands
+# under a release already vendored below it. A module upstream vendored ABOVE
+# its minimum is left alone; nothing here ever drags a version backwards.
+go 1.25.12
+golang.org/x/crypto v0.52.0
+golang.org/x/net v0.56.0
+golang.org/x/text v0.39.0
+golang.org/x/sys v0.44.0

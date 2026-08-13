@@ -82,9 +82,25 @@ jobs:
       # AFTER the clone, not before: go.mod is upstream's, so the toolchain this
       # pins is the one the release being built asks for. A setup-go step above
       # the clone would have no go.mod to read.
+      # BEFORE setup-go, because setup-go reads go.mod to decide which Go it
+      # installs, and the toolchain is what a scanner reads out of the finished
+      # binary as `stdlib`. The published tools reported stdlib 1.25.9 - the Go
+      # an older upstream release asked for - so this raises the line to the
+      # version that fixes it when upstream is below it, and leaves it alone
+      # when upstream is already ahead, which 100.18.0 (go 1.26.5) is.
+      - name: Raise the Go toolchain to the security floor
+        run: bash _patches/releases/security-bumps.sh toolchain
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      # AFTER setup-go, because every command in this mode is a go command. It
+      # re-resolves and re-vendors only the modules upstream vendored BELOW the
+      # floor in releases/security-minimums.txt - on 100.18.0 that is none of
+      # them, and it says so and changes nothing.
+      - name: Raise the vendored dependencies to the security floor
+        run: bash _patches/releases/security-bumps.sh vendor
 
       - name: Cross-compile every tool for every platform
         run: bash _patches/.github/scripts/build-tools.sh
