@@ -390,7 +390,7 @@ and raises what the published binaries are built with:
 the build keeps it from going backwards.
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/HASH">The toolchain and the vendored dependencies are raised to a floor before the tools are compiled</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/cd1277c">The toolchain and the vendored dependencies are raised to a floor before the tools are compiled</a>. Thanks to xet7.</summary>
 
 A container scan of `ghcr.io/wekan/wekan:v10.91` reads every binary in the
 image, and the nine tools this repository publishes each reported the same 37
