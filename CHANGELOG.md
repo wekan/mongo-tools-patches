@@ -8,35 +8,33 @@ platforms:
 - [How WeKan consumes them](https://github.com/wekan/wekan)
 - [Design docs](docs/Design/Directory-structure.md)
 
-Each build applies the patches onto a **shallow, single-branch** clone
-(`--depth 1 --single-branch`) of the newest upstream MongoDB Database Tools
-**release** — the newest `<MAJOR>.x` tag (`MAJOR` from
-[`tools-major.txt`](tools-major.txt)), never a branch head or a commit between
-releases, and with no git history behind the tag. What was cloned for the current
-line:
+Each build applies the patches onto a shallow, single-branch clone
+(`--depth 1 --single-branch`) of current upstream `master`, including changes not
+yet in a release. It then selects the newest stable Go, upgrades the complete module
+graph and regenerates `vendor/`. What was current when this workflow was introduced:
 
-| Upstream | Branch | Tag | Commit |
-|----------|--------|-----|--------|
-| [mongodb/mongo-tools](https://github.com/mongodb/mongo-tools) | 100.x | [100.17.0](https://github.com/mongodb/mongo-tools/releases/tag/100.17.0) | [`0b142f65e139525881b6a343bc56d8d98e5a1f90`](https://github.com/mongodb/mongo-tools/commit/0b142f65e139525881b6a343bc56d8d98e5a1f90) |
+| Upstream | Ref | Release identity | Commit |
+|----------|-----|------------------|--------|
+| [mongodb/mongo-tools](https://github.com/mongodb/mongo-tools) | `master` | `master-575cf6b` | [`575cf6b8431e9964cdf6d247ea301c1c64691f6a`](https://github.com/mongodb/mongo-tools/commit/575cf6b8431e9964cdf6d247ea301c1c64691f6a) |
 
 Each release's own notes repeat this table for the exact version it carries, filled
-in by the build from the tag it cloned.
+in by the build from the ref and exact commit it cloned.
 
 <details>
 <summary>Version</summary>
 
-- Upstream tags the Database Tools `100.17.0` — no leading `v`, unlike Node.js — and
-  its tag list still carries the old `r4.2.x` ones, so the version resolution takes
-  the newest `<MAJOR>.<MINOR>.<PATCH>` of the tracked major and nothing else.
+- A moving ref never reuses a release. Its identity combines the ref with Git's short
+  commit hash, for example `master-575cf6b`, while the full hash remains in every
+  binary and its release notes.
 - There is ONE patch section, `dist/all/`, applied to every target. One checkout
   cross-compiles all seventeen platforms here, so a patch that concerns one GOOS
   or GOARCH carries a Go build constraint rather than a section of its own. See
   [dist/README.md](dist/README.md).
 - Each patch is a `*.patch` file with a `*.sha256sum` (the checksum of the patch file)
-  and a `*.md` (what the patch does). The build clones upstream at the release tag,
+  and a `*.md` (what the patch does). The build clones upstream at the selected ref,
   verifies each checksum, and applies the patch.
-- The upstream version is resolved at build time — the newest `<MAJOR>.x` release — so
-  the patches carry forward across upstream releases without editing.
+- The upstream commit, Go toolchain and module graph are resolved at build time, so
+  source fixes and dependency updates do not wait for another upstream release.
 - The binaries a release carries are named `<tool>-<arch>` (`<tool>-<arch>.exe` on
   Windows), each with a `.sha256sum`. A release accumulates binaries — a rebuilt one
   clobbers its own asset and leaves the rest alone.
@@ -67,21 +65,40 @@ handled (their commits carry the short description and link).
 
 # Upcoming mongo-tools-patches release
 
-**In short:** the repository that replaces the **wekan/mongo-tools** source fork. That
-fork held 738 directories of upstream Go source it never changed — its six commits
-were all the **build** — so this repo keeps the build and drops the source: **Release
-All** and **Release All Missing** clone the newest upstream `100.x` release, verify
-and apply the patches in **`dist/`**, cross-compile the **eight tools** for
-**seventeen platforms** with CGO disabled, and publish one `<tool>-<arch>`
-binary and `.sha256sum` per platform. Same model as **wekan/node-patches**, with
-the one difference the language forces: pure Go cross-compiles from a single
-checkout, so there is one patch section instead of six and one build job instead
-of fourteen.
-Below that: the two scripts both workflows share so they cannot drift, the two **test
-scripts** that run the real code offline against a fixture upstream and a stubbed Go,
-and the design docs and maintainer instructions the repo is set up with.
+**In short:** this repository replaces the source fork with a reproducible build from
+current upstream **master**, including unreleased fixes. Every snapshot uses the
+**newest stable Go**, upgrades and vendors the **complete dependency graph**, and gets
+a commit-specific release identity. The shared workflows cross-compile the **eight
+tools** for **seventeen platforms** without mixing binaries from different upstream
+commits.
 
-This release creates the repository:
+This release follows current upstream development:
+
+**Source and dependencies** - how unreleased fixes and current dependencies reach the
+published binaries without losing provenance.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/dbe8878">Each build follows upstream master and uses newest Go and dependencies</a>. Thanks to xet7.</summary>
+
+The default source is upstream `master`, so fixes such as bounded archive-restore
+concurrency, corrected connection-duration handling and more reliable oplog dump
+checks are built without waiting for the next Database Tools tag. An explicit ref can
+still reproduce an older source.
+
+Every moving-ref build is isolated under `master-SHORT-COMMIT-HASH`; the full hash is
+also embedded in the binaries and linked from the release notes. The workflows install
+the newest stable Go, run `go get -u ./...`, tidy the complete module graph and
+regenerate `vendor/` before compiling. The old fixed security-floor list and tracked
+major file are removed because neither could provide newest-source semantics.
+
+Offline workflow tests cover the default and overridden refs, the commit-derived
+identity, both workflows' Go/dependency steps, patch integrity and every build target.
+A real current-master preparation upgraded the module graph successfully, and focused
+tests for common options, `mongodump` and `mongorestore` passed with Go 1.27.
+
+</details>
+
+and creates the repository:
 
 **The build** - what clones upstream, what compiles, and what a release carries.
 
