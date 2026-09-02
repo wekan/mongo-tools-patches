@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clone the upstream MongoDB Database Tools at a release tag into the CURRENT
+# Clone the upstream MongoDB Database Tools at a branch or tag into the CURRENT
 # directory and apply this repo's patches on top, so what is left is an ordinary
 # mongo-tools source tree the build can compile.
 #
@@ -8,8 +8,7 @@
 #   patches-root      where THIS repository is checked out (the workflows use
 #                     _patches, so the upstream tree can be moved to the
 #                     workspace root beside it)
-#   version-override  build this exact upstream release instead of the newest
-#                     <MAJOR>.x one (tools-major.txt)
+#   version-override  build this ref instead of upstream master
 #
 # It is a script, not a block of YAML, for the same reason the build is a script:
 # release-all.yml and release-all-missing.yml both need it, and two copies of
@@ -18,9 +17,10 @@
 # beside it.
 #
 # Prints, and when running under Actions also records:
-#   VERSION           the upstream release that was cloned
-#   UPSTREAM_COMMIT   the exact commit that tag resolves to - a tag names the
-#                     release, this pins the bytes, and it is what gets stamped
+#   SOURCE_REF        the upstream branch or tag that was cloned
+#   VERSION           deterministic build identity, <ref>-<commit prefix>
+#   UPSTREAM_COMMIT   the exact commit that the ref resolved to; this pins the
+#                     bytes and is what gets stamped
 #                     into every binary and printed in the release notes
 #
 # UPSTREAM_URL overrides where upstream is cloned from; the tests point it at a
@@ -31,11 +31,9 @@ PATCHES="${1:?usage: apply-patches.sh <patches-root> [version]}"
 OVERRIDE="${2:-}"
 UPSTREAM_URL="${UPSTREAM_URL:-https://github.com/mongodb/mongo-tools.git}"
 
-# No version to type: resolve the NEWEST upstream release of the major this repo
-# carries patches for (tools-major.txt -> newest 100.x, e.g. 100.17.0 or newer).
-V="$(bash "$PATCHES/releases/newest-release.sh" "$PATCHES" "$OVERRIDE")"
-MAJOR="${V%%.*}"
-echo "Building upstream MongoDB Database Tools ${V}."
+# No ref to type: build upstream master, including unreleased fixes.
+REF="$(bash "$PATCHES/releases/newest-release.sh" "$PATCHES" "$OVERRIDE")"
+echo "Building upstream MongoDB Database Tools ref ${REF}."
 
 # Clone ONLY that one upstream release, shallow:
 #   --branch "$V"     the newest ${MAJOR}.x RELEASE tag, never a branch head or a
@@ -44,9 +42,12 @@ echo "Building upstream MongoDB Database Tools ${V}."
 #   --depth 1         just the tag's commit, no history behind it.
 # mongo-tools vendors its Go dependencies in-tree (vendor/), so there are no
 # submodules to init and no module download to do.
-git clone --quiet --depth 1 --single-branch --branch "$V" "$UPSTREAM_URL" toolssrc
+git clone --quiet --depth 1 --single-branch --branch "$REF" "$UPSTREAM_URL" toolssrc
 COMMIT="$(git -C toolssrc rev-parse HEAD)"
-echo "Cloned ${UPSTREAM_URL} tag ${V} at commit ${COMMIT} (depth 1, single branch)."
+SHORT_COMMIT="$(git -C toolssrc rev-parse --short HEAD)"
+SAFE_REF="$(printf '%s' "$REF" | tr '/[:space:]' '--' | tr -cd 'A-Za-z0-9._-')"
+VERSION="${SAFE_REF}-${SHORT_COMMIT}"
+echo "Cloned ${UPSTREAM_URL} ref ${REF} at commit ${COMMIT} (depth 1, single branch)."
 
 # Move the upstream tree up beside the patches checkout, so the build sees a
 # normal mongo-tools tree at $PWD and `go build ./mongodump/main` works with no
@@ -93,29 +94,30 @@ if [ "$applied" -eq 0 ]; then
   # carried no source changes at all, only the build. dist/ is where a patch
   # goes the day a tool needs one to compile for a platform upstream does not
   # build, and until then this repo is upstream plus a build.
-  echo "No patches in dist/all - building pristine upstream ${V}."
+  echo "No patches in dist/all - building pristine upstream ${REF} at ${COMMIT}."
 else
-  echo "Applied ${applied} patch(es) onto upstream ${V}."
+  echo "Applied ${applied} patch(es) onto upstream ${REF} at ${COMMIT}."
 fi
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   {
-    echo "### Source (${V})"
+    echo "### Source (${VERSION})"
     echo ""
-    echo "| Upstream | Branch | Tag | Commit | Patches applied |"
+    echo "| Upstream | Ref | Build | Commit | Patches applied |"
     echo "|----------|--------|-----|--------|-----------------|"
-    echo "| mongodb/mongo-tools | ${MAJOR}.x | ${V} | \`${COMMIT}\` | ${applied} |"
+    echo "| mongodb/mongo-tools | ${REF} | ${VERSION} | \`${COMMIT}\` | ${applied} |"
   } >> "$GITHUB_STEP_SUMMARY"
 fi
 if [ -n "${GITHUB_ENV:-}" ]; then
-  echo "VERSION=$V" >> "$GITHUB_ENV"
+  echo "SOURCE_REF=$REF" >> "$GITHUB_ENV"
+  echo "VERSION=$VERSION" >> "$GITHUB_ENV"
   echo "UPSTREAM_COMMIT=$COMMIT" >> "$GITHUB_ENV"
   # The version string stamped into every binary, and the tag the release is
   # published under: both are the upstream version, because that is what this
   # is - upstream at that release, plus the patches in dist/.
-  echo "TOOLS_VER=$V" >> "$GITHUB_ENV"
+  echo "TOOLS_VER=$VERSION" >> "$GITHUB_ENV"
   echo "TOOLS_COMMIT=$COMMIT" >> "$GITHUB_ENV"
-  echo "RELEASE_TAG=$V" >> "$GITHUB_ENV"
+  echo "RELEASE_TAG=$VERSION" >> "$GITHUB_ENV"
 fi
 
-printf 'VERSION=%s\nUPSTREAM_COMMIT=%s\nPATCHES_APPLIED=%s\n' "$V" "$COMMIT" "$applied"
+printf 'SOURCE_REF=%s\nVERSION=%s\nUPSTREAM_COMMIT=%s\nPATCHES_APPLIED=%s\n' "$REF" "$VERSION" "$COMMIT" "$applied"

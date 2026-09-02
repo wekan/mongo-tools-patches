@@ -1,15 +1,17 @@
 # mongo-tools-patches
 
 Patches to the upstream [MongoDB Database Tools](https://github.com/mongodb/mongo-tools)
-100.x, and the build that makes the `<tool>-<arch>` binaries WeKan ships in every
+development branch, and the build that makes the `<tool>-<arch>` binaries WeKan ships
+in every
 bundle, Docker image and snap.
 
-This repository carries **no mongo-tools source**. Each build clones the newest
-upstream `100.x` release, verifies and applies the patches in
+This repository carries **no mongo-tools source**. Each build clones current upstream
+`master`, including unreleased fixes, verifies and applies the patches in
 [`dist/`](dist/README.md), cross-compiles the eight tools (`bsondump`, `mongodump`,
 `mongoexport`, `mongofiles`, `mongoimport`, `mongorestore`, `mongostat`, `mongotop`)
-for every platform with CGO disabled, and publishes one binary per tool per platform
-with a `.sha256sum` beside each. It replaces the `wekan/mongo-tools` source fork,
+for every platform with CGO disabled, upgrades all dependencies with the newest stable
+Go, and publishes one binary per tool per platform with a `.sha256sum` beside each. It
+replaces the `wekan/mongo-tools` source fork,
 which carried no source change of its own — only this build. Same model as
 [wekan/node-patches](https://github.com/wekan/node-patches).
 

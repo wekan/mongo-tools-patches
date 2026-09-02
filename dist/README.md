@@ -1,10 +1,8 @@
 # dist/ — the patch section
 
-Patches to upstream `mongodb/mongo-tools`, applied to a **shallow clone of the
-newest upstream `<MAJOR>.x` release** (`MAJOR` from
-[`../tools-major.txt`](../tools-major.txt)) before every build. Nothing here is
-organised by upstream version: the version is resolved at build time, so a patch
-carries forward across upstream releases until the day it stops applying.
+Patches to upstream `mongodb/mongo-tools`, applied to a shallow clone of current
+upstream `master` before every build. Nothing here is organised by upstream version:
+a patch carries forward across upstream changes until the day it stops applying.
 
 ## There is one section, `all/`
 

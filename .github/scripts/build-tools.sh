@@ -10,7 +10,7 @@
 # ones" is exactly the list that "build all of them" also needs.
 #
 # It runs in the tree releases/apply-patches.sh leaves behind: upstream
-# mongodb/mongo-tools at a release tag, with this repo's patches applied. It came
+# mongodb/mongo-tools at an exact commit, with this repo's patches applied. It came
 # from the wekan/mongo-tools fork unchanged in substance when that fork was
 # retired in favour of this repo; what changed is where it writes (out/, because
 # dist/ here is the patch sections) and which commit it stamps (the UPSTREAM

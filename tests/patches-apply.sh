@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Do the patches still apply to the upstream release the build would clone? That
+# Do the patches still apply to the upstream ref the build would clone? That
 # is the question this repo lives or dies on: a patch that no longer applies
 # fails the build minutes in, and the only warning is a `git apply` error in a
 # log nobody is watching.
 #
-#   ./tests/patches-apply.sh              # the newest upstream <MAJOR>.x release
-#   ./tests/patches-apply.sh 100.17.0     # a particular one
+#   ./tests/patches-apply.sh              # current upstream master
+#   ./tests/patches-apply.sh 100.18.0     # a particular tag
 #
 # It does NOT clone mongo-tools - that is a large Go repository with its whole
 # vendor/ tree, to answer a question about a handful of files. It reconstructs a
@@ -34,10 +34,10 @@ command -v curl >/dev/null || { echo "curl is required."; exit 1; }
 # this test and the build never disagree about what "newest" is.
 V="$(bash "$ROOT/releases/newest-release.sh" "$ROOT" "${1:-}" 2>/dev/null)"
 if [ -z "${V:-}" ]; then
-  echo "SKIP: could not resolve the newest upstream release (no network?)."
+  echo "SKIP: could not resolve the upstream ref."
   exit 77
 fi
-echo "Upstream release: $V"
+echo "Upstream ref: $V"
 
 shopt -s nullglob
 patches=( "$ROOT"/dist/all/*.patch )

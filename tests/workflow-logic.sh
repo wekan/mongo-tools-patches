@@ -38,6 +38,7 @@ trap 'rm -rf "$TMP"' EXIT
 echo "The scripts parse, and the workflows call scripts that exist:"
 
 for s in "$ROOT/releases/newest-release.sh" "$ROOT/releases/apply-patches.sh" \
+         "$ROOT/releases/update-dependencies.sh" \
          "$ROOT/.github/scripts/build-tools.sh" "$ROOT/tests/patches-apply.sh"; do
   bash -n "$s" 2>/dev/null && ok "bash -n $(basename "$s")" \
                            || fail "$(basename "$s") does not parse"
@@ -65,13 +66,9 @@ for wf in "$ALL" "$MISSING"; do
                                     || fail "$n does not upload out/ - dist/ here is the patch sections"
 done
 
-# ── 2. Resolving the newest upstream release ─────────────────────────────────
-#
-# Upstream tags the Database Tools `100.17.0` - no leading v - and its tag list
-# still carries the old `r4.2.x` ones and release candidates. Picking the newest
-# means picking the newest of the RIGHT major, and nothing else.
+# ── 2. Resolving the upstream source ref ─────────────────────────────────────
 echo
-echo "The newest upstream release is resolved from the tags:"
+echo "The upstream source defaults to master and accepts an explicit ref:"
 
 UP="$TMP/upstream"
 mkdir -p "$UP"
@@ -88,12 +85,12 @@ mkdir -p "$UP"
 ) || fail "could not build the fixture upstream repository"
 
 got="$(UPSTREAM_URL="file://$UP" bash "$ROOT/releases/newest-release.sh" "$ROOT" 2>/dev/null)"
-[ "$got" = "100.17.0" ] && ok "the newest 100.x release is picked ($got)" \
-  || fail "expected 100.17.0 from the fixture tags, got '$got' (rc, r4.2.x or another major leaking in?)"
+[ "$got" = "master" ] && ok "master is the default source ref" \
+  || fail "expected master, got '$got'"
 
 got="$(UPSTREAM_URL="file://$UP" bash "$ROOT/releases/newest-release.sh" "$ROOT" 100.9.0 2>/dev/null)"
-[ "$got" = "100.9.0" ] && ok "an explicit version overrides the lookup" \
-  || fail "the version override printed '$got'"
+[ "$got" = "100.9.0" ] && ok "an explicit ref overrides master" \
+  || fail "the ref override printed '$got'"
 
 # ── 3. Cloning upstream and applying the patches ─────────────────────────────
 #
@@ -108,7 +105,6 @@ echo "Upstream is cloned into the workspace and the patches are applied:"
 PATCHES="$TMP/patches"
 mkdir -p "$PATCHES/releases" "$PATCHES/dist/all"
 cp "$ROOT/releases/newest-release.sh" "$ROOT/releases/apply-patches.sh" "$PATCHES/releases/"
-cp "$ROOT/tools-major.txt" "$PATCHES/"
 cat > "$PATCHES/dist/all/hello-patched.patch" <<'PATCH'
 --- a/hello.txt
 +++ b/hello.txt
@@ -122,7 +118,7 @@ run_apply() {   # <workspace> -> runs apply-patches.sh there, log in $TMP/apply.
   rm -rf "$1"; mkdir -p "$1/_patches"
   cp -r "$PATCHES"/. "$1/_patches/"
   ( cd "$1" && UPSTREAM_URL="file://$UP" \
-      bash _patches/releases/apply-patches.sh _patches 100.17.0 ) >"$TMP/apply.log" 2>&1
+      bash _patches/releases/apply-patches.sh _patches master ) >"$TMP/apply.log" 2>&1
 }
 
 WS="$TMP/ws"
@@ -147,6 +143,9 @@ grep -qx "patched" "$WS/hello.txt" 2>/dev/null \
 grep -q 'PATCHES_APPLIED=1' "$TMP/apply.log" \
   && ok "it reports how many patches it applied" \
   || fail "apply-patches.sh did not report PATCHES_APPLIED=1"
+grep -Eq 'VERSION=master-[0-9a-f]{7,}' "$TMP/apply.log" \
+  && ok "the build identity pins the master commit" \
+  || fail "the master build identity is not commit-pinned"
 
 # NEGATIVE: a patch whose checksum does not match must not be applied. The
 # checksum is verified BEFORE `git apply`, which is the whole reason it exists -
@@ -335,50 +334,19 @@ for wf in "$ALL" "$MISSING"; do
     || fail "$n has $tok GH_TOKEN step(s) but $rep GH_REPO - gh would guess the repository from the upstream clone"
 done
 
-# ── 8. The release notes find upstream's own section ─────────────────────────
-#
-# Upstream tags the release and writes the changelog entry AFTERWARDS, so the
-# section is not in CHANGELOG.md at the tag - the first run published notes with
-# the header only and said so. The lookup therefore tries the tag and then the
-# default branch, and the extraction itself is the workflow's own awk, run here
-# against a fixture.
+# ── 8. Moving source and dependency inputs stay explicit ─────────────────────
 echo
-echo "The release notes take upstream's section for the version:"
-grep -q 'for ref in "\$VERSION" master' "$ALL" \
-  && ok "the notes try the tag first, then master" \
-  || fail "release-all.yml does not fall back to upstream's default branch - the section is written after the tag"
-
-sed -n "/^ *\\\$0 == \"## \" ver/,/^ *inblock { print }/p" "$ALL" | sed 's/^ *//' > "$TMP/prog.awk"
-if [ -s "$TMP/prog.awk" ]; then
-  ok "the section extractor was found in release-all.yml"
-else
-  fail "could not extract the awk section program from release-all.yml"
-fi
-cat > "$TMP/CHANGELOG.md" <<'FIX'
-# Database Tools Changelog
-
-## 100.18.0
-
-_Released 2026-09-01_
-
-Newer release, must NOT be picked.
-
-## 100.17.0
-
-_Released 2026-05-08_
-
-The line that belongs in the notes.
-
-## 100.16.1
-
-Older release, must NOT be picked.
-FIX
-got="$(awk -v ver=100.17.0 -f "$TMP/prog.awk" "$TMP/CHANGELOG.md" | grep -c 'belongs in the notes')"
-spill="$(awk -v ver=100.17.0 -f "$TMP/prog.awk" "$TMP/CHANGELOG.md" | grep -c 'must NOT be picked')"
-[ "$got" = "1" ] && ok "it takes the section of the version being built" \
-                 || fail "the extractor did not find the 100.17.0 section in the fixture"
-[ "$spill" = "0" ] && ok "and stops at the next section, so no other release leaks in" \
-                   || fail "the extractor ran past the section boundary into $spill neighbouring line(s)"
+echo "The workflows select newest source, toolchain and dependencies:"
+for wf in "$ALL" "$MISSING"; do
+  n="$(basename "$wf")"
+  grep -q 'go-version: stable' "$wf" && ok "$n installs stable Go" \
+    || fail "$n does not install the newest stable Go"
+  grep -q 'releases/update-dependencies.sh' "$wf" && ok "$n upgrades dependencies" \
+    || fail "$n does not run update-dependencies.sh"
+done
+grep -q 'go get -u ./\.\.\.' "$ROOT/releases/update-dependencies.sh" \
+  && ok "the whole module graph is upgraded" \
+  || fail "update-dependencies.sh does not upgrade every package dependency"
 
 echo
 if [ "$fails" -eq 0 ]; then

@@ -35,14 +35,14 @@ name: Release All Missing
 # buildable".
 #
 # Usage:
-#   gh workflow run release-all-missing.yml                    # newest upstream 100.x release
-#   gh workflow run release-all-missing.yml -f version=100.17.0
+#   gh workflow run release-all-missing.yml                    # current upstream master
+#   gh workflow run release-all-missing.yml -f version=100.18.0
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Upstream release to complete, e.g. 100.17.0 (empty = newest upstream 100.x release)'
+        description: 'Upstream ref to complete, e.g. master or 100.18.0 (empty = master)'
         required: false
         type: string
 
@@ -69,25 +69,12 @@ jobs:
       - name: Fetch upstream mongo-tools and apply the patches
         run: bash _patches/releases/apply-patches.sh _patches "${{ inputs.version }}"
 
-      # BEFORE setup-go, because setup-go reads go.mod to decide which Go it
-      # installs, and the toolchain is what a scanner reads out of the finished
-      # binary as `stdlib`. The published tools reported stdlib 1.25.9 - the Go
-      # an older upstream release asked for - so this raises the line to the
-      # version that fixes it when upstream is below it, and leaves it alone
-      # when upstream is already ahead, which 100.18.0 (go 1.26.5) is.
-      - name: Raise the Go toolchain to the security floor
-        run: bash _patches/releases/security-bumps.sh toolchain
-
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: stable
 
-      # AFTER setup-go, because every command in this mode is a go command. It
-      # re-resolves and re-vendors only the modules upstream vendored BELOW the
-      # floor in releases/security-minimums.txt - on 100.18.0 that is none of
-      # them, and it says so and changes nothing.
-      - name: Raise the vendored dependencies to the security floor
-        run: bash _patches/releases/security-bumps.sh vendor
+      - name: Upgrade all dependencies and regenerate vendor
+        run: bash _patches/releases/update-dependencies.sh
 
       - name: What the release already has
         env:
@@ -147,7 +134,7 @@ jobs:
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" --title "$RELEASE_TAG" \
               --target "${{ github.sha }}" \
-              --notes "MongoDB Database Tools built from upstream mongodb/mongo-tools $RELEASE_TAG plus the patches in wekan/mongo-tools-patches. Created by Release All Missing because no release existed for this tag."
+              --notes "MongoDB Database Tools built from upstream mongodb/mongo-tools $SOURCE_REF at $UPSTREAM_COMMIT, using newest stable Go and upgraded dependencies, plus the patches in wekan/mongo-tools-patches."
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
