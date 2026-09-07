@@ -75,6 +75,16 @@ commits.
 This release follows current upstream development:
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/4fa0b90">Allow the expanded tools matrix to finish</a>. Thanks to xet7.</summary>
+
+Both full and missing-only workflows now allow three hours for the forty-two
+target build instead of retaining the former seventeen-target one-hour limit.
+The offline workflow test pins the timeout in both paths so adding platforms
+cannot create a predictably cancelled release build.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/18b9af9">Build every currently supported native Go target</a>. Thanks to xet7.</summary>
 
 Release All expands from seventeen to forty-two OS/CPU targets after compiling
