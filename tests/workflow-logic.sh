@@ -53,6 +53,11 @@ for wf in "$ALL" "$MISSING"; do
                                   || fail "$n calls ${p#_patches/}, which is not in this repo"
   done
 done
+for wf in "$ALL" "$MISSING"; do
+  grep -q 'timeout-minutes: 180' "$wf" \
+    && ok "$(basename "$wf") allows the expanded matrix three hours" \
+    || fail "$(basename "$wf") still has the old seventeen-target timeout"
+done
 
 # The build writes to out/ and the workflows upload out/ - dist/ is the patch
 # sections here, and a workflow uploading dist/* would publish the patches and

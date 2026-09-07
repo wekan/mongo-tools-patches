@@ -64,7 +64,7 @@ jobs:
   build:
     name: build every tool for every platform
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       # This repo carries only PATCHES, not a mongo-tools tree. So: check the
       # patches out into _patches/, clone the matching UPSTREAM release into the
