@@ -27,7 +27,7 @@ in by the build from the ref and exact commit it cloned.
   commit hash, for example `master-575cf6b`, while the full hash remains in every
   binary and its release notes.
 - There is ONE patch section, `dist/all/`, applied to every target. One checkout
-  cross-compiles all seventeen platforms here, so a patch that concerns one GOOS
+  cross-compiles all forty-two platforms here, so a patch that concerns one GOOS
   or GOARCH carries a Go build constraint rather than a section of its own. See
   [dist/README.md](dist/README.md).
 - Each patch is a `*.patch` file with a `*.sha256sum` (the checksum of the patch file)
@@ -40,11 +40,11 @@ in by the build from the ref and exact commit it cloned.
   clobbers its own asset and leaves the rest alone.
 - The eight tools: `bsondump`, `mongodump`, `mongoexport`, `mongofiles`,
   `mongoimport`, `mongorestore`, `mongostat`, `mongotop`.
-- The seventeen platforms: `amd64`, `arm64`, `armhf`, `armv6`, `armel`, `i386`,
-  `ppc64le`, `s390x`, `riscv64`, `loong64`, `win64`, `win-arm64`, `win32`,
-  `mac-amd64`, `mac-arm64`, `freebsd-amd64`, `freebsd-arm64`. The `<arch>`
-  tokens match wekan/FerretDB's `ferretdb-<arch>` naming, so one token names a
-  platform's whole set.
+- The forty-two platforms cover every native Go OS/CPU pair on which current
+  mongo-tools compiles with CGO disabled: Linux, Windows, macOS, FreeBSD,
+  NetBSD, OpenBSD, DragonFly BSD and AIX, including all buildable 32-bit ARM,
+  MIPS and PowerPC variants. Shared `<arch>` tokens match
+  wekan/FerretDB's `ferretdb-<arch>` naming.
 
 </details>
 
@@ -69,10 +69,28 @@ handled (their commits carry the short description and link).
 current upstream **master**, including unreleased fixes. Every snapshot uses the
 **newest stable Go**, upgrades and vendors the **complete dependency graph**, and gets
 a commit-specific release identity. The shared workflows cross-compile the **eight
-tools** for **seventeen platforms** without mixing binaries from different upstream
+tools** for **forty-two platforms** without mixing binaries from different upstream
 commits.
 
 This release follows current upstream development:
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/18b9af9">Build every currently supported native Go target</a>. Thanks to xet7.</summary>
+
+Release All expands from seventeen to forty-two OS/CPU targets after compiling
+current upstream master with Go 1.27 across Go's native command-line platforms.
+It adds AIX, DragonFly BSD, NetBSD and OpenBSD, all compiling FreeBSD CPUs, and
+Linux MIPS and big-endian PowerPC. Illumos, Solaris and Plan 9 remain excluded
+because current upstream source does not compile there; mobile and WebAssembly
+ports are not native command-line release executables.
+
+The canonical build script still skips and names any individual tool that a
+future upstream change makes unbuildable. Its offline regression now verifies
+eight tools times forty-two targets, all checksums and the release-repair path.
+Temporary compiler diagnostics also stay inside the configured `.tools/tmp`
+tree instead of the system temporary directory.
+
+</details>
 
 **Source and dependencies** - how unreleased fixes and current dependencies reach the
 published binaries without losing provenance.
