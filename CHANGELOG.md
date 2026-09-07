@@ -75,6 +75,17 @@ commits.
 This release follows current upstream development:
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/d341c92">Add the Android ARM64 command-line target</a>. Thanks to xet7.</summary>
+
+The CGO-free upstream tools compile for Android arm64, expanding the canonical
+registry to forty-three targets and 344 possible binaries. Other Android
+architectures still require external CGO linking, while iOS and WebAssembly do
+not produce equivalent standalone command-line programs. Tests keep target and
+asset counts synchronized across full and missing-only releases.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/4fa0b90">Allow the expanded tools matrix to finish</a>. Thanks to xet7.</summary>
 
 Both full and missing-only workflows now allow three hours for the forty-two
