@@ -91,6 +91,7 @@ TARGETS="
   openbsd-arm64 openbsd arm64 -
   openbsd-ppc64 openbsd ppc64 -
   openbsd-riscv64 openbsd riscv64 -
+  android-arm64 android arm64 -
 "
 
 # Is this asset already on the release? BOTH the binary and its checksum have to

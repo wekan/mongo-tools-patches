@@ -3,10 +3,10 @@ name: Release All Missing
 # The same build as release-all.yml, over only what the release does NOT already
 # have.
 #
-# WHY: a release of this repo carries eight tools times forty-two platforms - up
-# to 336 binaries, each with a .sha256sum beside it. When one upload fails, or a
+# WHY: a release of this repo carries eight tools times forty-three platforms - up
+# to 344 binaries, each with a .sha256sum beside it. When one upload fails, or a
 # platform is added, or a run is cancelled half way, the fix used to be to run
-# the whole thing again: a full cross-compile of everything, and 336 --clobber
+# the whole thing again: a full cross-compile of everything, and 344 --clobber
 # uploads to replace bytes that were already correct. This builds the gap.
 #
 # HOW: ask the release what it already has (.github/scripts/release-assets.sh),
