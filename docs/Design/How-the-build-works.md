@@ -12,10 +12,17 @@ pipeline:
 5. Install the newest stable Go release. Run `go get -u ./...`, `go mod tidy`, and
    `go mod vendor`, ensuring every reachable direct and transitive dependency is
    upgraded and the exact compiled graph is vendored.
-6. Cross-compile all eight tools for all seventeen targets with CGO disabled. A
+6. Cross-compile all eight tools for all forty-two targets with CGO disabled. A
    target that cannot compile is reported and skipped; a run where nothing compiles
    fails.
 7. Publish each binary and its SHA256 file to the commit-specific release.
+
+The target registry covers native command-line binaries that current upstream
+source actually compiles: Linux, Windows, macOS, FreeBSD, NetBSD, OpenBSD,
+DragonFly BSD and AIX. A Go 1.27 compile probe excludes Illumos and Solaris
+(missing password terminal implementation) and Plan 9 (missing Unix signal
+semantics). Android, iOS and WebAssembly are application/runtime targets rather
+than standalone desktop or server command-line releases.
 
 The full upstream commit is embedded in the tools and shown in the release notes.
 Using a commit-specific release tag prevents a later `master` build from mixing its

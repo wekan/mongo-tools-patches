@@ -37,8 +37,9 @@ out="${OUT:-out}"
 tools_ver="${TOOLS_VER:?TOOLS_VER is required}"
 tools_commit="${TOOLS_COMMIT:-${GITHUB_SHA:-unknown}}"
 skip_list="${SKIP_LIST:-}"
+tmp_root="${TMPDIR:-$PWD/.tools/tmp}"
 
-mkdir -p "$out"
+mkdir -p "$out" "$tmp_root"
 
 TOOLS="bsondump mongodump mongoexport mongofiles mongoimport mongorestore mongostat mongotop"
 # name  goos  goarch  goarm   ('-' = no GOARM). Same arch tokens + set as
@@ -64,7 +65,32 @@ TARGETS="
   mac-amd64 darwin amd64 -
   mac-arm64 darwin arm64 -
   freebsd-amd64 freebsd amd64 -
+  freebsd-i386 freebsd 386 -
+  freebsd-armel freebsd arm 5
+  freebsd-armv6 freebsd arm 6
+  freebsd-armv7 freebsd arm 7
   freebsd-arm64 freebsd arm64 -
+  aix-ppc64 aix ppc64 -
+  dragonfly-amd64 dragonfly amd64 -
+  mips linux mips -
+  mipsle linux mipsle -
+  mips64 linux mips64 -
+  mips64le linux mips64le -
+  ppc64 linux ppc64 -
+  netbsd-i386 netbsd 386 -
+  netbsd-amd64 netbsd amd64 -
+  netbsd-armel netbsd arm 5
+  netbsd-armv6 netbsd arm 6
+  netbsd-armv7 netbsd arm 7
+  netbsd-arm64 netbsd arm64 -
+  openbsd-i386 openbsd 386 -
+  openbsd-amd64 openbsd amd64 -
+  openbsd-armel openbsd arm 5
+  openbsd-armv6 openbsd arm 6
+  openbsd-armv7 openbsd arm 7
+  openbsd-arm64 openbsd arm64 -
+  openbsd-ppc64 openbsd ppc64 -
+  openbsd-riscv64 openbsd riscv64 -
 "
 
 # Is this asset already on the release? BOTH the binary and its checksum have to
@@ -97,12 +123,12 @@ while read -r name goos goarch goarm; do
         fi
         if CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOARM="$arm" \
              go build -trimpath -ldflags "$LDFLAGS" \
-             -o "$out/$asset" "./${tool}/main" 2>"/tmp/${tool}-${name}.log"; then
+             -o "$out/$asset" "./${tool}/main" 2>"$tmp_root/${tool}-${name}.log"; then
             echo "  built   $asset"
             built=$((built + 1))
         else
             echo "  skipped $asset (does not compile)"
-            tail -2 "/tmp/${tool}-${name}.log" | sed 's/^/          /' || true
+            tail -2 "$tmp_root/${tool}-${name}.log" | sed 's/^/          /' || true
             skipped_broken=$((skipped_broken + 1))
         fi
     done

@@ -2,7 +2,7 @@
 # What the release workflows do, checked WITHOUT a runner and without the
 # network.
 #
-# The build itself is eight tools times seventeen platforms on a GitHub runner, so
+# The build itself is eight tools times forty-two platforms on a GitHub runner, so
 # the failures worth catching here are the ones that kill a run in its first
 # seconds - and in the sibling repo that is exactly what happened: wekan/node-patches'
 # first run died in every one of its thirteen builds, three seconds after cloning,
@@ -215,14 +215,26 @@ mkdir -p "$BUILD"
 
 bins="$(find "$BUILD/out" -type f ! -name '*.sha256sum' 2>/dev/null | wc -l | tr -d ' ')"
 sums="$(find "$BUILD/out" -type f -name '*.sha256sum' 2>/dev/null | wc -l | tr -d ' ')"
-# 8 tools x 17 targets = 136, less the one target stubbed to fail. It was 16
-# targets until armv6 (GOARM=6, Raspberry Pi 1 and Zero) was added beside armhf
-# to match wekan/FerretDB's set - a deliberate new target, so the expected count
-# moves with it rather than the check being loosened.
-[ "$bins" = "135" ] && ok "8 tools x 17 targets, less the one that does not compile ($bins)" \
-                    || fail "expected 135 binaries, got $bins"
+# 8 tools x 42 targets = 336, less the one target stubbed to fail. The expected
+# count moves with the canonical target registry rather than being loosened.
+[ "$bins" = "335" ] && ok "8 tools x 42 targets, less the one that does not compile ($bins)" \
+                    || fail "expected 335 binaries, got $bins"
 [ "$sums" = "$bins" ] && ok "a .sha256sum beside every binary ($sums)" \
                       || fail "$bins binaries but $sums checksums"
+targets="$(sed -n '/^TARGETS="/,/^"$/p' "$ROOT/.github/scripts/build-tools.sh" |
+  sed -n 's/^  \([^ ]*\) .*/\1/p')"
+expected="amd64 arm64 armhf armv6 armel i386 ppc64le s390x riscv64 loong64 win64 win-arm64 win32 mac-amd64 mac-arm64 freebsd-amd64 freebsd-i386 freebsd-armel freebsd-armv6 freebsd-armv7 freebsd-arm64 aix-ppc64 dragonfly-amd64 mips mipsle mips64 mips64le ppc64 netbsd-i386 netbsd-amd64 netbsd-armel netbsd-armv6 netbsd-armv7 netbsd-arm64 openbsd-i386 openbsd-amd64 openbsd-armel openbsd-armv6 openbsd-armv7 openbsd-arm64 openbsd-ppc64 openbsd-riscv64"
+missing_targets=""
+for target in $expected; do
+  printf '%s\n' "$targets" | grep -qxF "$target" || missing_targets="$missing_targets $target"
+done
+[ -z "$missing_targets" ] && ok "all 42 compile-proven native targets are registered" \
+  || fail "compile-proven targets are missing:$missing_targets"
+[ "$(printf '%s\n' "$targets" | sort -u | wc -l | tr -d ' ')" = 42 ] \
+  && ok "the target registry has no duplicate names" || fail "the target registry is duplicated"
+grep -q 'tmp_root="${TMPDIR:-$PWD/.tools/tmp}"' "$ROOT/.github/scripts/build-tools.sh" \
+  && ok "compiler diagnostics use configured .tools/tmp" \
+  || fail "compiler diagnostics do not honor TMPDIR/.tools/tmp"
 [ -e "$BUILD/out/mongostat-loong64" ] \
   && fail "the target that does not compile still produced a binary" \
   || ok "the target that does not compile produced nothing, and did not fail the run"

@@ -20,7 +20,7 @@ mongo-tools-patches/
 ├── .github/
 │   ├── workflows/
 │   │   ├── release-all.yml            Clone upstream → verify+apply patches →
-│   │   │                              cross-compile 8 tools × 17 platforms →
+│   │   │                              cross-compile 8 tools × 42 platforms →
 │   │   │                              publish to the release.
 │   │   └── release-all-missing.yml    Build only the binaries a release lacks,
 │   │                                  through the same scripts.

@@ -15,6 +15,10 @@ replaces the `wekan/mongo-tools` source fork,
 which carried no source change of its own — only this build. Same model as
 [wekan/node-patches](https://github.com/wekan/node-patches).
 
+The forty-two targets span every native Go OS/CPU pair on which current
+mongo-tools compiles without CGO: Linux, Windows, macOS, FreeBSD, NetBSD,
+OpenBSD, DragonFly BSD and AIX, including 32-bit ARM, MIPS and PowerPC variants.
+
 - [Releases](https://github.com/wekan/mongo-tools-patches/releases)
 - [Directory structure](docs/Design/Directory-structure.md)
 - [How the build works](docs/Design/How-the-build-works.md)

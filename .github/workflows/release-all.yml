@@ -19,7 +19,7 @@ name: Release All
 # a `GOOS=... GOARCH=... go build` on the ordinary x86_64 runner - no container,
 # no cross toolchain, no emulation, and minutes rather than the hours a V8 build
 # takes. That is also why there is no per-platform patch section here: a single
-# checkout produces all seventeen targets, so a patch that concerns one GOOS or
+# checkout produces all forty-two targets, so a patch that concerns one GOOS or
 # GOARCH carries a Go build constraint instead of living in its own directory
 # (dist/README.md).
 #
