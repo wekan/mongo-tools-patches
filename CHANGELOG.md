@@ -75,6 +75,24 @@ commits.
 This release follows current upstream development:
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/1700c01">Document that mongo-tools has no telemetry, and pin it against upstream</a>. Thanks to xet7.</summary>
+
+Checked upstream `mongodb/mongo-tools` source (outside `vendor/`) for an
+analytics client, a phone-home reporter, or a `--telemetry`/`DO_NOT_TRACK`
+flag of its own, the same way wekan/mongosh-patches and this fork's
+FerretDB were checked before their telemetry was patched out. There is
+none: the only "telemetry" match anywhere in the tree is the vendored Azure
+SDK's `policy_telemetry.go`, which builds a `User-Agent` header for the
+tools' optional Azure Key Vault/KMS HTTP calls, not a usage-data collector,
+and it is third-party vendored code this repository does not patch.
+README.md now says so directly. `tests/no-telemetry-upstream.sh` re-checks
+this against the current upstream ref rather than leaving it a one-time
+claim, so a future mongo-tools release that adds real telemetry is caught
+here instead of silently missed.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/d341c92">Add the Android ARM64 command-line target</a>. Thanks to xet7.</summary>
 
 The CGO-free upstream tools compile for Android arm64, expanding the canonical
