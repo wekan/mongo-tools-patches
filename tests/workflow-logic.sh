@@ -39,7 +39,8 @@ echo "The scripts parse, and the workflows call scripts that exist:"
 
 for s in "$ROOT/releases/newest-release.sh" "$ROOT/releases/apply-patches.sh" \
          "$ROOT/releases/update-dependencies.sh" \
-         "$ROOT/.github/scripts/build-tools.sh" "$ROOT/tests/patches-apply.sh"; do
+         "$ROOT/.github/scripts/build-tools.sh" "$ROOT/tests/patches-apply.sh" \
+         "$ROOT/tests/no-telemetry-upstream.sh"; do
   bash -n "$s" 2>/dev/null && ok "bash -n $(basename "$s")" \
                            || fail "$(basename "$s") does not parse"
 done

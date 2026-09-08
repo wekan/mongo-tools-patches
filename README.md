@@ -25,6 +25,22 @@ PowerPC variants.
 - [How the build works](docs/Design/How-the-build-works.md)
 - [Patch format](docs/Design/Patch-format.md)
 
+## Telemetry
+
+There is no telemetry code to remove here. Unlike
+[wekan/mongosh-patches](https://github.com/wekan/mongosh-patches) (which patches out
+mongosh's beacon reporting) and this fork's [FerretDB](https://github.com/wekan/FerretDB)
+(which patches out its own beacon reporting), the eight MongoDB Database Tools built
+here have no analytics client, no phone-home reporter, and no `--telemetry`/`DO_NOT_TRACK`
+flag of their own — checked directly against upstream `mongodb/mongo-tools` source, not
+assumed. The only match for "telemetry" anywhere in the tree is the vendored Azure SDK's
+`policy_telemetry.go`, which is a `User-Agent` string builder for the tools' optional Azure
+Key Vault / KMS calls (identifying the client library to Azure's own API, the same way
+every HTTP client sends a `User-Agent`), not a usage-data collector, and it is
+third-party vendored code this repository does not patch. **This fork has telemetry code
+removed everywhere it exists to remove** — mongosh and FerretDB — **and mongo-tools has
+none in the first place.**
+
 This repository's own files (workflows, scripts, docs) are MIT — see
 [LICENSE](LICENSE). Upstream mongo-tools is Apache-2.0, and a patch in `dist/` is a
 modification of that source: it, and the binaries built from it, stay Apache-2.0.
