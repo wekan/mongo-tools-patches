@@ -1,0 +1,520 @@
+diff --git a/vendor/github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime/policy_telemetry.go b/vendor/github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime/policy_telemetry.go
+index 2c60e9d..1cee6e4 100644
+--- a/vendor/github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime/policy_telemetry.go
++++ b/vendor/github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime/policy_telemetry.go
+@@ -4,77 +4,17 @@
+ package runtime
+ 
+ import (
+-	"bytes"
+-	"fmt"
+-	"net/http"
+-	"os"
+-	"runtime"
+-	"strings"
+-
+-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/shared"
+ 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
++	"net/http"
+ )
+ 
+-type telemetryPolicy struct {
+-	telemetryValue string
+-}
++// Compatibility policy only: SDK/platform identification has been removed.
++type telemetryPolicy struct{}
+ 
+-// NewTelemetryPolicy creates a telemetry policy object that adds telemetry information to outgoing HTTP requests.
+-// The format is [<application_id> ]azsdk-go-<mod>/<ver> <platform_info>.
+-// Pass nil to accept the default values; this is the same as passing a zero-value options.
+ func NewTelemetryPolicy(mod, ver string, o *policy.TelemetryOptions) policy.Policy {
+-	if o == nil {
+-		o = &policy.TelemetryOptions{}
+-	}
+-	tp := telemetryPolicy{}
+-	if o.Disabled {
+-		return &tp
+-	}
+-	b := &bytes.Buffer{}
+-	// normalize ApplicationID
+-	if o.ApplicationID != "" {
+-		o.ApplicationID = strings.ReplaceAll(o.ApplicationID, " ", "/")
+-		if len(o.ApplicationID) > 24 {
+-			o.ApplicationID = o.ApplicationID[:24]
+-		}
+-		b.WriteString(o.ApplicationID)
+-		b.WriteRune(' ')
+-	}
+-	// mod might be the fully qualified name. in that case, we just want the package name
+-	if i := strings.LastIndex(mod, "/"); i > -1 {
+-		mod = mod[i+1:]
+-	}
+-	b.WriteString(formatTelemetry(mod, ver))
+-	b.WriteRune(' ')
+-	b.WriteString(platformInfo)
+-	tp.telemetryValue = b.String()
+-	return &tp
+-}
+-
+-func formatTelemetry(comp, ver string) string {
+-	return fmt.Sprintf("azsdk-go-%s/%s", comp, ver)
++	return &telemetryPolicy{}
+ }
+ 
+ func (p telemetryPolicy) Do(req *policy.Request) (*http.Response, error) {
+-	if p.telemetryValue == "" {
+-		return req.Next()
+-	}
+-	// preserve the existing User-Agent string
+-	if ua := req.Raw().Header.Get(shared.HeaderUserAgent); ua != "" {
+-		p.telemetryValue = fmt.Sprintf("%s %s", p.telemetryValue, ua)
+-	}
+-	req.Raw().Header.Set(shared.HeaderUserAgent, p.telemetryValue)
+ 	return req.Next()
+ }
+-
+-// NOTE: the ONLY function that should write to this variable is this func
+-var platformInfo = func() string {
+-	operatingSystem := runtime.GOOS // Default OS string
+-	switch operatingSystem {
+-	case "windows":
+-		operatingSystem = os.Getenv("OS") // Get more specific OS information
+-	case "linux": // accept default OS info
+-	case "freebsd": //  accept default OS info
+-	}
+-	return fmt.Sprintf("(%s; %s)", runtime.Version(), operatingSystem)
+-}()
+diff --git a/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/internal/comm/comm.go b/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/internal/comm/comm.go
+index 87e3879..935aaf9 100644
+--- a/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/internal/comm/comm.go
++++ b/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/internal/comm/comm.go
+@@ -14,7 +14,6 @@ import (
+ 	"net/http"
+ 	"net/url"
+ 	"reflect"
+-	"runtime"
+ 	"strings"
+ 	"time"
+ 
+@@ -22,7 +21,6 @@ import (
+ 
+ 	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/errors"
+ 	customJSON "github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/json"
+-	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/version"
+ )
+ 
+ // HTTPClient represents an HTTP client.
+@@ -303,9 +301,5 @@ func addStdHeaders(headers http.Header) http.Header {
+ 		headers.Set("client-request-id", uuid.New().String())
+ 		headers.Set("Return-Client-Request-Id", "false")
+ 	}
+-	headers.Set("x-client-sku", version.SKU)
+-	headers.Set("x-client-os", runtime.GOOS)
+-	headers.Set("x-client-cpu", runtime.GOARCH)
+-	headers.Set("x-client-ver", version.Version)
+ 	return headers
+ }
+diff --git a/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/managedidentity/managedidentity.go b/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/managedidentity/managedidentity.go
+index d4815be..e0b7276 100644
+--- a/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/managedidentity/managedidentity.go
++++ b/vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/managedidentity/managedidentity.go
+@@ -31,7 +31,6 @@ import (
+ 	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/accesstokens"
+ 	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/authority"
+ 	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/shared"
+-	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/version"
+ 	"github.com/google/uuid"
+ )
+ 
+@@ -733,8 +732,6 @@ func createIMDSAuthRequest(ctx context.Context, id ID, resource string) (*http.R
+ 		return nil, fmt.Errorf("error creating http request %s", err)
+ 	}
+ 	req.Header.Set(metaHTTPHeaderName, "true")
+-	req.Header.Set("x-client-SKU", version.SKU)
+-	req.Header.Set("x-client-Ver", version.Version)
+ 	req.Header.Set("x-ms-client-request-id", uuid.New().String())
+ 	return req, nil
+ }
+diff --git a/vendor/github.com/aws/aws-sdk-go-v2/aws/middleware/user_agent.go b/vendor/github.com/aws/aws-sdk-go-v2/aws/middleware/user_agent.go
+index 157a715..fca5aa7 100644
+--- a/vendor/github.com/aws/aws-sdk-go-v2/aws/middleware/user_agent.go
++++ b/vendor/github.com/aws/aws-sdk-go-v2/aws/middleware/user_agent.go
+@@ -3,18 +3,11 @@ package middleware
+ import (
+ 	"context"
+ 	"fmt"
+-	"os"
+-	"runtime"
+-	"sort"
+-	"strings"
+ 
+ 	"github.com/aws/aws-sdk-go-v2/aws"
+ 	"github.com/aws/smithy-go/middleware"
+-	smithyhttp "github.com/aws/smithy-go/transport/http"
+ )
+ 
+-var languageVersion = strings.TrimPrefix(runtime.Version(), "go")
+-
+ // SDKAgentKeyType is the metadata type to add to the SDK agent string
+ type SDKAgentKeyType int
+ 
+@@ -169,8 +162,6 @@ var credentialSourceToFeature = map[aws.CredentialSource]UserAgentFeature{
+ 
+ // RequestUserAgent is a build middleware that set the User-Agent for the request.
+ type RequestUserAgent struct {
+-	sdkAgent, userAgent *smithyhttp.UserAgentBuilder
+-	features            map[UserAgentFeature]struct{}
+ }
+ 
+ // NewRequestUserAgent returns a new requestUserAgent which will set the User-Agent and X-Amz-User-Agent for the
+@@ -184,86 +175,27 @@ type RequestUserAgent struct {
+ //
+ //	aws-sdk-go-v2/1.2.3 md/GOOS/linux md/GOARCH/amd64 lang/go/1.15
+ func NewRequestUserAgent() *RequestUserAgent {
+-	userAgent, sdkAgent := smithyhttp.NewUserAgentBuilder(), smithyhttp.NewUserAgentBuilder()
+-	addProductName(userAgent)
+-	addUserAgentMetadata(userAgent)
+-	addProductName(sdkAgent)
+-
+-	r := &RequestUserAgent{
+-		sdkAgent:  sdkAgent,
+-		userAgent: userAgent,
+-		features:  map[UserAgentFeature]struct{}{},
+-	}
+-
+-	addSDKMetadata(r)
+-
+-	return r
+-}
+-
+-func addSDKMetadata(r *RequestUserAgent) {
+-	r.AddSDKAgentKey(OperatingSystemMetadata, getNormalizedOSName())
+-	r.AddSDKAgentKeyValue(LanguageMetadata, "go", languageVersion)
+-	r.AddSDKAgentKeyValue(AdditionalMetadata, "GOOS", runtime.GOOS)
+-	r.AddSDKAgentKeyValue(AdditionalMetadata, "GOARCH", runtime.GOARCH)
+-	if ev := os.Getenv(execEnvVar); len(ev) > 0 {
+-		r.AddSDKAgentKey(EnvironmentMetadata, ev)
+-	}
+-}
+-
+-func addProductName(builder *smithyhttp.UserAgentBuilder) {
+-	builder.AddKeyValue(aws.SDKName, aws.SDKVersion)
+-}
+-
+-func addUserAgentMetadata(builder *smithyhttp.UserAgentBuilder) {
+-	builder.AddKey(uaMetadata)
++	return &RequestUserAgent{}
+ }
+ 
+ // AddUserAgentKey retrieves a requestUserAgent from the provided stack, or initializes one.
+ func AddUserAgentKey(key string) func(*middleware.Stack) error {
+-	return func(stack *middleware.Stack) error {
+-		requestUserAgent, err := getOrAddRequestUserAgent(stack)
+-		if err != nil {
+-			return err
+-		}
+-		requestUserAgent.AddUserAgentKey(key)
+-		return nil
+-	}
++	return func(*middleware.Stack) error { return nil }
+ }
+ 
+ // AddUserAgentKeyValue retrieves a requestUserAgent from the provided stack, or initializes one.
+ func AddUserAgentKeyValue(key, value string) func(*middleware.Stack) error {
+-	return func(stack *middleware.Stack) error {
+-		requestUserAgent, err := getOrAddRequestUserAgent(stack)
+-		if err != nil {
+-			return err
+-		}
+-		requestUserAgent.AddUserAgentKeyValue(key, value)
+-		return nil
+-	}
++	return func(*middleware.Stack) error { return nil }
+ }
+ 
+ // AddSDKAgentKey retrieves a requestUserAgent from the provided stack, or initializes one.
+ func AddSDKAgentKey(keyType SDKAgentKeyType, key string) func(*middleware.Stack) error {
+-	return func(stack *middleware.Stack) error {
+-		requestUserAgent, err := getOrAddRequestUserAgent(stack)
+-		if err != nil {
+-			return err
+-		}
+-		requestUserAgent.AddSDKAgentKey(keyType, key)
+-		return nil
+-	}
++	return func(*middleware.Stack) error { return nil }
+ }
+ 
+ // AddSDKAgentKeyValue retrieves a requestUserAgent from the provided stack, or initializes one.
+ func AddSDKAgentKeyValue(keyType SDKAgentKeyType, key, value string) func(*middleware.Stack) error {
+-	return func(stack *middleware.Stack) error {
+-		requestUserAgent, err := getOrAddRequestUserAgent(stack)
+-		if err != nil {
+-			return err
+-		}
+-		requestUserAgent.AddSDKAgentKeyValue(keyType, key, value)
+-		return nil
+-	}
++	return func(*middleware.Stack) error { return nil }
+ }
+ 
+ // AddRequestUserAgentMiddleware registers a requestUserAgent middleware on the stack if not present.
+@@ -293,38 +225,33 @@ func getOrAddRequestUserAgent(stack *middleware.Stack) (*RequestUserAgent, error
+ 
+ // AddUserAgentKey adds the component identified by name to the User-Agent string.
+ func (u *RequestUserAgent) AddUserAgentKey(key string) {
+-	u.userAgent.AddKey(strings.Map(rules, key))
++
+ }
+ 
+ // AddUserAgentKeyValue adds the key identified by the given name and value to the User-Agent string.
+ func (u *RequestUserAgent) AddUserAgentKeyValue(key, value string) {
+-	u.userAgent.AddKeyValue(strings.Map(rules, key), strings.Map(rules, value))
++
+ }
+ 
+ // AddUserAgentFeature adds the feature ID to the tracking list to be emitted
+ // in the final User-Agent string.
+ func (u *RequestUserAgent) AddUserAgentFeature(feature UserAgentFeature) {
+-	u.features[feature] = struct{}{}
++
+ }
+ 
+ // AddSDKAgentKey adds the component identified by name to the User-Agent string.
+ func (u *RequestUserAgent) AddSDKAgentKey(keyType SDKAgentKeyType, key string) {
+-	// TODO: should target sdkAgent
+-	u.userAgent.AddKey(keyType.string() + "/" + strings.Map(rules, key))
++
+ }
+ 
+ // AddSDKAgentKeyValue adds the key identified by the given name and value to the User-Agent string.
+ func (u *RequestUserAgent) AddSDKAgentKeyValue(keyType SDKAgentKeyType, key, value string) {
+-	// TODO: should target sdkAgent
+-	u.userAgent.AddKeyValue(keyType.string(), strings.Map(rules, key)+"#"+strings.Map(rules, value))
++
+ }
+ 
+ // AddCredentialsSource adds the credential source as a feature on the User-Agent string
+ func (u *RequestUserAgent) AddCredentialsSource(source aws.CredentialSource) {
+-	x, ok := credentialSourceToFeature[source]
+-	if ok {
+-		u.AddUserAgentFeature(x)
+-	}
++
+ }
+ 
+ // ID the name of the middleware.
+@@ -336,63 +263,5 @@ func (u *RequestUserAgent) ID() string {
+ func (u *RequestUserAgent) HandleBuild(ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler) (
+ 	out middleware.BuildOutput, metadata middleware.Metadata, err error,
+ ) {
+-	switch req := in.Request.(type) {
+-	case *smithyhttp.Request:
+-		u.addHTTPUserAgent(req)
+-		// TODO: To be re-enabled
+-		// u.addHTTPSDKAgent(req)
+-	default:
+-		return out, metadata, fmt.Errorf("unknown transport type %T", in)
+-	}
+-
+ 	return next.HandleBuild(ctx, in)
+ }
+-
+-func (u *RequestUserAgent) addHTTPUserAgent(request *smithyhttp.Request) {
+-	const userAgent = "User-Agent"
+-	if len(u.features) > 0 {
+-		updateHTTPHeader(request, userAgent, buildFeatureMetrics(u.features))
+-	}
+-	updateHTTPHeader(request, userAgent, u.userAgent.Build())
+-}
+-
+-func (u *RequestUserAgent) addHTTPSDKAgent(request *smithyhttp.Request) {
+-	const sdkAgent = "X-Amz-User-Agent"
+-	updateHTTPHeader(request, sdkAgent, u.sdkAgent.Build())
+-}
+-
+-func updateHTTPHeader(request *smithyhttp.Request, header string, value string) {
+-	var current string
+-	if v := request.Header[header]; len(v) > 0 {
+-		current = v[0]
+-	}
+-	if len(current) > 0 {
+-		current = value + " " + current
+-	} else {
+-		current = value
+-	}
+-	request.Header[header] = append(request.Header[header][:0], current)
+-}
+-
+-func rules(r rune) rune {
+-	switch {
+-	case r >= '0' && r <= '9':
+-		return r
+-	case r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z':
+-		return r
+-	case validChars[r]:
+-		return r
+-	default:
+-		return '-'
+-	}
+-}
+-
+-func buildFeatureMetrics(features map[UserAgentFeature]struct{}) string {
+-	fs := make([]string, 0, len(features))
+-	for f := range features {
+-		fs = append(fs, string(f))
+-	}
+-
+-	sort.Strings(fs)
+-	return fmt.Sprintf("%s/%s", FeatureMetadata2.string(), strings.Join(fs, ","))
+-}
+diff --git a/vendor/github.com/aws/aws-sdk-go/aws/corehandlers/user_agent.go b/vendor/github.com/aws/aws-sdk-go/aws/corehandlers/user_agent.go
+index ac842c5..46f5fc0 100644
+--- a/vendor/github.com/aws/aws-sdk-go/aws/corehandlers/user_agent.go
++++ b/vendor/github.com/aws/aws-sdk-go/aws/corehandlers/user_agent.go
+@@ -1,47 +1,14 @@
+ package corehandlers
+ 
+-import (
+-	"os"
+-	"runtime"
++import "github.com/aws/aws-sdk-go/aws/request"
+ 
+-	"github.com/aws/aws-sdk-go/aws"
+-	"github.com/aws/aws-sdk-go/aws/request"
+-)
+-
+-// SDKVersionUserAgentHandler is a request handler for adding the SDK Version
+-// to the user agent.
++// Compatibility handlers. SDK and execution-environment reporting are removed.
+ var SDKVersionUserAgentHandler = request.NamedHandler{
+-	Name: "core.SDKVersionUserAgentHandler",
+-	Fn: request.MakeAddToUserAgentHandler(aws.SDKName, aws.SDKVersion,
+-		runtime.Version(), runtime.GOOS, runtime.GOARCH),
++	Name: "core.SDKVersionUserAgentHandler", Fn: func(*request.Request) {},
+ }
+-
+-const execEnvVar = `AWS_EXECUTION_ENV`
+-const execEnvUAKey = `exec-env`
+-
+-// AddHostExecEnvUserAgentHander is a request handler appending the SDK's
+-// execution environment to the user agent.
+-//
+-// If the environment variable AWS_EXECUTION_ENV is set, its value will be
+-// appended to the user agent string.
+ var AddHostExecEnvUserAgentHander = request.NamedHandler{
+-	Name: "core.AddHostExecEnvUserAgentHander",
+-	Fn: func(r *request.Request) {
+-		v := os.Getenv(execEnvVar)
+-		if len(v) == 0 {
+-			return
+-		}
+-
+-		request.AddToUserAgent(r, execEnvUAKey+"/"+v)
+-	},
++	Name: "core.AddHostExecEnvUserAgentHander", Fn: func(*request.Request) {},
+ }
+-
+ var AddAwsInternal = request.NamedHandler{
+-	Name: "core.AddAwsInternal",
+-	Fn: func(r *request.Request) {
+-		if len(isAwsInternal) == 0 {
+-			return
+-		}
+-		request.AddToUserAgent(r, isAwsInternal)
+-	},
++	Name: "core.AddAwsInternal", Fn: func(*request.Request) {},
+ }
+diff --git a/vendor/github.com/aws/aws-sdk-go/aws/request/handlers.go b/vendor/github.com/aws/aws-sdk-go/aws/request/handlers.go
+index 9556332..2f87337 100644
+--- a/vendor/github.com/aws/aws-sdk-go/aws/request/handlers.go
++++ b/vendor/github.com/aws/aws-sdk-go/aws/request/handlers.go
+@@ -1,10 +1,5 @@
+ package request
+ 
+-import (
+-	"fmt"
+-	"strings"
+-)
+-
+ // A Handlers provides a collection of request handlers for various
+ // stages of handling requests.
+ type Handlers struct {
+@@ -310,21 +305,13 @@ func WithAppendUserAgent(s string) Option {
+ // "name/version (extra0; extra1; ...)"
+ // The user agent part will be concatenated with this current request's user agent string.
+ func MakeAddToUserAgentHandler(name, version string, extra ...string) func(*Request) {
+-	ua := fmt.Sprintf("%s/%s", name, version)
+-	if len(extra) > 0 {
+-		ua += fmt.Sprintf(" (%s)", strings.Join(extra, "; "))
+-	}
+-	return func(r *Request) {
+-		AddToUserAgent(r, ua)
+-	}
++	return func(*Request) {}
+ }
+ 
+ // MakeAddToUserAgentFreeFormHandler adds the input to the User-Agent request header.
+ // The input string will be concatenated with the current request's user agent string.
+ func MakeAddToUserAgentFreeFormHandler(s string) func(*Request) {
+-	return func(r *Request) {
+-		AddToUserAgent(r, s)
+-	}
++	return func(*Request) {}
+ }
+ 
+ // WithSetRequestHeaders updates the operation request's HTTP header to contain
+diff --git a/vendor/github.com/aws/aws-sdk-go/aws/request/request.go b/vendor/github.com/aws/aws-sdk-go/aws/request/request.go
+index 636d9ec..aaa602c 100644
+--- a/vendor/github.com/aws/aws-sdk-go/aws/request/request.go
++++ b/vendor/github.com/aws/aws-sdk-go/aws/request/request.go
+@@ -182,11 +182,11 @@ type Option func(*Request)
+ //
+ // This Option can be used multiple times with a single API operation.
+ //
+-//    var id2, versionID string
+-//    svc.PutObjectWithContext(ctx, params,
+-//        request.WithGetResponseHeader("x-amz-id-2", &id2),
+-//        request.WithGetResponseHeader("x-amz-version-id", &versionID),
+-//    )
++//	var id2, versionID string
++//	svc.PutObjectWithContext(ctx, params,
++//	    request.WithGetResponseHeader("x-amz-id-2", &id2),
++//	    request.WithGetResponseHeader("x-amz-version-id", &versionID),
++//	)
+ func WithGetResponseHeader(key string, val *string) Option {
+ 	return func(r *Request) {
+ 		r.Handlers.Complete.PushBack(func(req *Request) {
+@@ -199,8 +199,8 @@ func WithGetResponseHeader(key string, val *string) Option {
+ // headers from the HTTP response and assign them to the passed in headers
+ // variable. The passed in headers pointer must be non-nil.
+ //
+-//    var headers http.Header
+-//    svc.PutObjectWithContext(ctx, params, request.WithGetResponseHeaders(&headers))
++//	var headers http.Header
++//	svc.PutObjectWithContext(ctx, params, request.WithGetResponseHeaders(&headers))
+ func WithGetResponseHeaders(headers *http.Header) Option {
+ 	return func(r *Request) {
+ 		r.Handlers.Complete.PushBack(func(req *Request) {
+@@ -212,7 +212,7 @@ func WithGetResponseHeaders(headers *http.Header) Option {
+ // WithLogLevel is a request option that will set the request to use a specific
+ // log level when the request is made.
+ //
+-//     svc.PutObjectWithContext(ctx, params, request.WithLogLevel(aws.LogDebugWithHTTPBody)
++//	svc.PutObjectWithContext(ctx, params, request.WithLogLevel(aws.LogDebugWithHTTPBody)
+ func WithLogLevel(l aws.LogLevelType) Option {
+ 	return func(r *Request) {
+ 		r.Config.LogLevel = aws.LogLevel(l)
+@@ -641,11 +641,7 @@ func (r *Request) copy() *Request {
+ 
+ // AddToUserAgent adds the string to the end of the request's current user agent.
+ func AddToUserAgent(r *Request, s string) {
+-	curUA := r.HTTPRequest.Header.Get("User-Agent")
+-	if len(curUA) > 0 {
+-		s = curUA + " " + s
+-	}
+-	r.HTTPRequest.Header.Set("User-Agent", s)
++	// SDK usage reporting has been removed.
+ }
+ 
+ // SanitizeHostForHeader removes default port from host and updates request.Host

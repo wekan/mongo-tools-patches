@@ -27,23 +27,27 @@ PowerPC variants.
 
 ## Telemetry
 
-There is no telemetry code to remove here. Unlike
-[wekan/mongosh-patches](https://github.com/wekan/mongosh-patches) (which patches out
-mongosh's beacon reporting) and this fork's [FerretDB](https://github.com/wekan/FerretDB)
-(which patches out its own beacon reporting), the eight MongoDB Database Tools built
-here have no analytics client, no phone-home reporter, and no `--telemetry`/`DO_NOT_TRACK`
-flag of their own — checked directly against upstream `mongodb/mongo-tools` source, not
-assumed. The only match for "telemetry" anywhere in the tree is the vendored Azure SDK's
-`policy_telemetry.go`, which is a `User-Agent` string builder for the tools' optional Azure
-Key Vault / KMS calls (identifying the client library to Azure's own API, the same way
-every HTTP client sends a `User-Agent`), not a usage-data collector, and it is
-third-party vendored code this repository does not patch. **This fork has telemetry code
-removed everywhere it exists to remove** — mongosh and FerretDB — **and mongo-tools has
-none in the first place.**
+The eight tools have no standalone usage reporter in the reviewed upstream
+source. Their cloud dependencies did contain reporting code: Azure/MSAL added
+client and OS identification headers, and AWS SDKs reported runtime, environment,
+features and credential-source information with requests. The checksum-verified
+`dist/vendor/remove-sdk-telemetry.patch` removes those implementations.
+
+Vendor patches run **after** dependency regeneration, so `go mod vendor` cannot
+erase the removal. Both dependency preparation and compilation audit the reviewed
+source and vendor inventories; added or changed code stops the build for review.
+SDK tests verify request forwarding and absence of reporting headers. Go runs with
+`GOTELEMETRY=off` during dependency updates, tests and builds.
+
+Authentication, request correlation, database handshakes, S3 operations and local
+diagnostic hooks remain. Those are ordinary database/cloud functionality, not a
+background usage reporter. See [the telemetry audit](docs/Design/Telemetry-audit.md)
+for the reviewed revision, verification and update procedure.
 
 This repository's own files (workflows, scripts, docs) are MIT — see
 [LICENSE](LICENSE). Upstream mongo-tools is Apache-2.0, and a patch in `dist/` is a
-modification of that source: it, and the binaries built from it, stay Apache-2.0.
+modification of its upstream source. SDK patches and test fixtures retain their
+respective MIT or Apache-2.0 licenses; the tools remain Apache-2.0.
 
 Maintainer and contributor rules — who commits, as whom, and how the CHANGELOG is
 written — are in [WeKan's CLAUDE.md and AGENTS.md](https://github.com/wekan/wekan),

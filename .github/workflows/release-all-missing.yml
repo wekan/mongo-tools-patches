@@ -90,14 +90,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          sh _patches/.github/scripts/release-assets.sh "$RELEASE_TAG" | sort > existing.txt
-          n="$(wc -l < existing.txt | tr -d ' ')"
+          mkdir -p .tools
+          sh _patches/.github/scripts/release-assets.sh "$RELEASE_TAG" | sort > .tools/existing.txt
+          n="$(wc -l < .tools/existing.txt | tr -d ' ')"
           echo "$RELEASE_TAG already carries $n asset(s)."
           echo "### $RELEASE_TAG: $n asset(s) already published" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build only what is missing
         env:
-          SKIP_LIST: existing.txt
+          SKIP_LIST: .tools/existing.txt
         run: bash _patches/.github/scripts/build-tools.sh
 
       - name: Upload the missing binaries, and say what was filled in

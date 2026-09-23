@@ -19,6 +19,7 @@
 #
 # Exit 0 when everything holds, 1 with the failures listed at the end.
 set -uo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ALL="$ROOT/.github/workflows/release-all.yml"
@@ -38,9 +39,9 @@ trap 'rm -rf "$TMP"' EXIT
 echo "The scripts parse, and the workflows call scripts that exist:"
 
 for s in "$ROOT/releases/newest-release.sh" "$ROOT/releases/apply-patches.sh" \
-         "$ROOT/releases/update-dependencies.sh" \
+         "$ROOT/releases/update-dependencies.sh" "$ROOT/releases/apply-vendor-patches.sh" \
          "$ROOT/.github/scripts/build-tools.sh" "$ROOT/tests/patches-apply.sh" \
-         "$ROOT/tests/no-telemetry-upstream.sh"; do
+         "$ROOT/tests/no-telemetry-upstream.sh" "$ROOT/tests/sdk-telemetry.sh"; do
   bash -n "$s" 2>/dev/null && ok "bash -n $(basename "$s")" \
                            || fail "$(basename "$s") does not parse"
 done
@@ -80,7 +81,7 @@ UP="$TMP/upstream"
 mkdir -p "$UP"
 (
   cd "$UP" || exit 1
-  git init -q .
+  git init -q -b master .
   printf 'hello\n' > hello.txt
   printf 'module github.com/mongodb/mongo-tools\n\ngo 1.26.4\n' > go.mod
   mkdir -p mongodump/main
@@ -157,7 +158,7 @@ grep -Eq 'VERSION=master-[0-9a-f]{7,}' "$TMP/apply.log" \
 # checksum is verified BEFORE `git apply`, which is the whole reason it exists -
 # without this check the test above would pass just as well with no verification
 # at all.
-printf 'deadbeef  hello-patched.patch\n' > "$PATCHES/dist/all/hello-patched.sha256sum"
+printf '0000000000000000000000000000000000000000000000000000000000000000  hello-patched.patch\n' > "$PATCHES/dist/all/hello-patched.sha256sum"
 if run_apply "$TMP/ws-bad"; then
   fail "a patch with a WRONG checksum was applied anyway"
 else
@@ -212,10 +213,32 @@ printf 'stub binary\n' > "$out"
 STUB
 chmod +x "$TMP/bin/go"
 
+# Compile-matrix tests use a real audit of a minimal source fixture. Only Go
+# compilation is stubbed; the production audit has no environment bypass.
+AUDIT_REPO="$TMP/build-scripts"
+mkdir -p "$AUDIT_REPO/.github/scripts" "$AUDIT_REPO/releases"
+cp "$ROOT/.github/scripts/build-tools.sh" "$AUDIT_REPO/.github/scripts/"
+cp "$ROOT/releases/audit-telemetry.py" "$AUDIT_REPO/releases/"
+prepare_build_fixture() {
+  mkdir -p "$1/vendor"
+  printf 'module fixture\n' > "$1/go.mod"
+  : > "$1/go.sum"
+  : > "$1/vendor/modules.txt"
+  python3 - "$AUDIT_REPO" "$1" <<'PYFIXTURE'
+import importlib.util, json, pathlib, sys
+repo = pathlib.Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location('audit', repo / 'releases/audit-telemetry.py')
+audit = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(audit)
+(repo / 'releases/telemetry-audit.json').write_text(json.dumps({'trees': audit.snapshot(sys.argv[2])}))
+PYFIXTURE
+}
+
 BUILD="$TMP/build"
 mkdir -p "$BUILD"
+prepare_build_fixture "$BUILD"
 ( cd "$BUILD" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 TOOLS_COMMIT=abc123 \
-    bash "$ROOT/.github/scripts/build-tools.sh" ) >"$TMP/build.log" 2>&1 \
+    bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/build.log" 2>&1 \
   && ok "it succeeds when one target does not compile" \
   || fail "build-tools.sh failed: $(tail -2 "$TMP/build.log" | tr '\n' ' ')"
 
@@ -258,6 +281,18 @@ grep -q '  mongodump-amd64$' "$BUILD/out/mongodump-amd64.sha256sum" \
   && ok "Windows targets get .exe, with the checksum named after it" \
   || fail "the Windows binary or its checksum is missing/misnamed"
 
+# New source must stop before compilation, including code under a nested out/.
+mkdir -p "$BUILD/vendor/example/out"
+printf 'package reporting\n' > "$BUILD/vendor/example/out/new.go"
+if ( cd "$BUILD" && PATH="$TMP/bin:$PATH" \
+     bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/drift.log" 2>&1; then
+  fail "unreviewed vendored source reached compilation"
+elif grep -q 'Telemetry audit required' "$TMP/drift.log"; then
+  ok "new vendored source blocks the build before compilation"
+else
+  fail "source drift failed for an unexpected reason"
+fi
+
 # ── 5. What "already on the release" means ───────────────────────────────────
 #
 # Release All Missing hands the release's asset list to the SAME build script.
@@ -268,14 +303,15 @@ echo
 echo "A binary counts as already published only with its checksum beside it:"
 
 SKIPDIR="$TMP/skip"
-mkdir -p "$SKIPDIR"
-cat > "$SKIPDIR/existing.txt" <<'LIST'
+mkdir -p "$SKIPDIR/.tools"
+cat > "$SKIPDIR/.tools/existing.txt" <<'LIST'
 mongodump-amd64
 mongodump-amd64.sha256sum
 mongodump-arm64
 LIST
-( cd "$SKIPDIR" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 SKIP_LIST=existing.txt \
-    bash "$ROOT/.github/scripts/build-tools.sh" ) >"$TMP/skip.log" 2>&1 \
+prepare_build_fixture "$SKIPDIR"
+( cd "$SKIPDIR" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 SKIP_LIST=.tools/existing.txt \
+    bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/skip.log" 2>&1 \
   || fail "build-tools.sh with a skip list failed: $(tail -2 "$TMP/skip.log" | tr '\n' ' ')"
 
 grep -q '  have    mongodump-amd64$' "$TMP/skip.log" \
@@ -297,8 +333,9 @@ exit 1
 STUB
 chmod +x "$TMP/bin/go"
 DEAD="$TMP/dead"; mkdir -p "$DEAD"
+prepare_build_fixture "$DEAD"
 if ( cd "$DEAD" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 \
-       bash "$ROOT/.github/scripts/build-tools.sh" ) >/dev/null 2>&1; then
+       bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >/dev/null 2>&1; then
   fail "a build that produced NOTHING succeeded - a broken toolchain would publish an empty release"
 else
   ok "a build that produces nothing at all fails"
@@ -362,9 +399,12 @@ for wf in "$ALL" "$MISSING"; do
   grep -q 'releases/update-dependencies.sh' "$wf" && ok "$n upgrades dependencies" \
     || fail "$n does not run update-dependencies.sh"
 done
-grep -q 'go get -u ./\.\.\.' "$ROOT/releases/update-dependencies.sh" \
+grep -q 'go get -u ./\.\.\.' "$ROOT/releases/update-dependencies.sh" "$ROOT/releases/apply-vendor-patches.sh" \
   && ok "the whole module graph is upgraded" \
   || fail "update-dependencies.sh does not upgrade every package dependency"
+
+python3 "$ROOT/tests/telemetry-audit.py" && ok "telemetry source and vendor guards" \
+  || fail "telemetry source and vendor guards failed"
 
 echo
 if [ "$fails" -eq 0 ]; then

@@ -32,6 +32,8 @@
 # also the moment a patch in dist/ becomes worth writing.
 
 set -uo pipefail
+export GOTELEMETRY=off
+python3 "$(dirname "$0")/../../releases/audit-telemetry.py" . || exit 1
 
 out="${OUT:-out}"
 tools_ver="${TOOLS_VER:?TOOLS_VER is required}"

@@ -12,10 +12,13 @@ pipeline:
 5. Install the newest stable Go release. Run `go get -u ./...`, `go mod tidy`, and
    `go mod vendor`, ensuring every reachable direct and transitive dependency is
    upgraded and the exact compiled graph is vendored.
-6. Cross-compile all eight tools for all forty-three targets with CGO disabled. A
+6. Apply checksum-verified `dist/vendor/` patches, audit the complete source and
+   vendor inventories, and run the SDK telemetry regression tests. The compiler
+   entry point repeats the inventory audit. Changes require review.
+7. Cross-compile all eight tools for all forty-three targets with CGO disabled. A
    target that cannot compile is reported and skipped; a run where nothing compiles
    fails.
-7. Publish each binary and its SHA256 file to the commit-specific release.
+8. Publish each binary and its SHA256 file to the commit-specific release.
 
 The target registry covers native command-line binaries that current upstream
 source actually compiles: Linux, Windows, macOS, FreeBSD, NetBSD, OpenBSD,

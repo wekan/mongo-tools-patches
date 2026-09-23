@@ -3,6 +3,7 @@
 # and regenerate vendor/. Run after actions/setup-go has installed the newest
 # stable Go release.
 set -euo pipefail
+export GOTELEMETRY=off
 
 CURRENT_GO="$(go env GOVERSION)"
 CURRENT_GO="${CURRENT_GO#go}"
@@ -19,3 +20,6 @@ GOFLAGS=-mod=mod go mod tidy
 GOFLAGS=-mod=mod go mod vendor
 
 echo "Updated the complete module graph and vendor tree with Go ${CURRENT_GO}."
+
+bash "$(dirname "$0")/apply-vendor-patches.sh"
+bash "$(dirname "$0")/../tests/sdk-telemetry.sh" "$PWD"

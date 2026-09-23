@@ -1,9 +1,9 @@
 # Patch format
 
-Patches live in `dist/all/`, the one section — see
-[Directory-structure.md](Directory-structure.md) and
-[`dist/README.md`](../../dist/README.md) for why there is only one, and what a
-per-platform patch does instead.
+Patches live in `dist/all/` for tool source and `dist/vendor/` for dependencies.
+Both apply to every target. Vendor patches run only after dependency upgrades and
+`go mod vendor`; applying them before regeneration would lose the removal.
+See [`dist/README.md`](../../dist/README.md).
 
 Every patch is **three files sharing a base name**. The base name is the logical
 change, kebab-case: `mongostat-loong64-build`, `gopsutil-riscv64-syscall`. All three
@@ -20,8 +20,9 @@ dist/all/
 
 The code change, as `git diff` or `git format-patch` output, applying cleanly with
 `git apply` to a **pristine upstream checkout** of the tracked release. That is what
-CI applies it to, so verify it there — `./tests/patches-apply.sh` does exactly that
-against the release the build would clone.
+the source patch stage applies it to. `./tests/patches-apply.sh` checks that
+stage. Vendor patches target the regenerated dependencies: the offline fixture
+tests and `tests/sdk-telemetry.sh` check their application and behavior.
 
 - **Group by logical change, not by file.** One patch may touch several files if they
   are one change; name it for what it does, not for a file.

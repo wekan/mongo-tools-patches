@@ -70,7 +70,7 @@ rmdir toolssrc
 [ -d .git ] || { echo "::error::The upstream tree's .git did not reach the workspace root."; exit 1; }
 
 # Apply the patches - checksum-verified first, in name order - onto the pristine
-# upstream tree. There is ONE section, dist/all, and dist/README.md says why: a
+# upstream tree using dist/all. Vendor patches run after dependency refresh. A
 # single checkout here cross-compiles every target, so a patch cannot be
 # per-platform in the way a Node.js one is; a patch that concerns one GOOS or
 # GOARCH carries a Go build constraint instead.
@@ -94,7 +94,7 @@ if [ "$applied" -eq 0 ]; then
   # carried no source changes at all, only the build. dist/ is where a patch
   # goes the day a tool needs one to compile for a platform upstream does not
   # build, and until then this repo is upstream plus a build.
-  echo "No patches in dist/all - building pristine upstream ${REF} at ${COMMIT}."
+  echo "No source patches in dist/all - prepared upstream ${REF} at ${COMMIT}."
 else
   echo "Applied ${applied} patch(es) onto upstream ${REF} at ${COMMIT}."
 fi
