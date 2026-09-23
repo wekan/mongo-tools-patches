@@ -65,6 +65,17 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/c5c5fc193726395fb656e14cd813be6bfa044cd9">Accept valid GitHub SSH origins in release launchers</a>. Thanks to xet7.</summary>
+
+Release All and Release All Missing accept HTTPS and SSH clone URLs
+with or without .git, including git@github.com:wekan/mongo-tools-patches.
+Incorrect repositories and lookalike hosts still stop the release.
+Offline positive and negative launcher tests and source audits pass;
+no hosted release was run.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/666c245">Add release menus and automated dependency checks</a>. Thanks to xet7.</summary>
 
 Add shell and Windows Release All / Release All Missing menus. Full releases
