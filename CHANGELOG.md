@@ -65,6 +65,20 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/8ed724c1ab5a6cf0a8504b66d19c152b8fbf2c56">Distinguish known dependency keyword false positives from new findings</a>. Thanks to xet7.</summary>
+
+Report documented, exact dependency keyword matches as known false
+positives for default outbound reporting. New or changed matches remain
+unclassified warnings for review. Independent source and binary risk
+checks remain active. Current dependency inventories have no matches
+requiring new exemptions. Positive and negative launcher tests, risk
+tests and offline audits pass across all six release repositories.
+This changes release logs only; no application UI or hosted release
+was exercised. Existing Upcoming regression coverage is retained.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/62207c445449bbb826e7c06f166ad19ba8c900c6">Fix Windows release source paths and allow scoped version links</a>. Thanks to xet7.</summary>
 
 Pass a shell-relative checkout path to the Node release resolver so
