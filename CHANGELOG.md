@@ -104,7 +104,12 @@ Verified upstream `5e7290222cae7ebd5eade59bc19d6f25b637a1d3` with refreshed
 dependencies and Go 1.27.1: all eight tools compiled and ran `--version` on macOS
 ARM64, five SDK packages passed request-path tests with fake transports, BSON
 conversion passed, and offline workflow/patch/audit regression tests passed.
-The full platform matrix and live cloud/database integrations were not run.
+A fresh macOS ARM64 rebuild also passed startup/help checks for all eight tools
+and database-connected import/export, dump/restore, BSON conversion, GridFS
+put/get/delete, mongostat and mongotop checks against an isolated MongoDB server.
+The source/vendor inventories and native telemetry gates passed, with no startup
+errors. The full platform matrix, hosted releases and live cloud integrations
+were not run.
 See [the audit and update procedure](docs/Design/Telemetry-audit.md).
 
 </details>
