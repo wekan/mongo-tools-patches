@@ -64,6 +64,18 @@ handled (their commits carry the short description and link).
 
 # Upcoming mongo-tools-patches release
 
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/8f10930">Reject telemetry in native release binaries</a>. Thanks to xet7.</summary>
+
+Both release workflows retain source/vendor review and SDK request checks, and
+now scan every compiled or retained output before checksumming. Source, patch
+and binary failures show error messages; binary failures stop the matrix rather
+than becoming unsupported-platform skips. Offline workflow and gate tests pass.
+All eight patched native tools passed; a stripped binary built with the patch
+reversed was rejected as a negative control.
+
+</details>
+
 **In short:** this repository replaces the source fork with a reproducible build from
 current upstream **master**, including unreleased fixes. Every snapshot uses the
 **newest stable Go**, upgrades and vendors the **complete dependency graph**, and gets
