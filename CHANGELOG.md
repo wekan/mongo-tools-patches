@@ -65,6 +65,22 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/666c245">Add release menus and automated dependency checks</a>. Thanks to xet7.</summary>
+
+Add shell and Windows Release All / Release All Missing menus. Full releases
+validate Upcoming notes, prepare a source version, commit all pending files,
+push and dispatch Actions. Missing builds retain the existing release tag and
+skip complete binary/checksum pairs, replacing incomplete pairs together.
+
+Dependency fingerprints are informational. Known hashes, new suspicious
+keywords and new URL literals stop automated checks without requiring AI
+approval or exhaustive review. Restore the locked Go graph before vendoring
+and telemetry patching. Launcher/indicator tests, workflow tests, real vendor
+regeneration and SDK checks pass; hosted publishing was not run.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/8f10930">Reject telemetry in native release binaries</a>. Thanks to xet7.</summary>
 
 Both release workflows retain source/vendor review and SDK request checks, and
