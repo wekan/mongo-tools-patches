@@ -153,10 +153,12 @@ def source_version(root, config, requested=''):
         result = json.loads(run(root, 'node', 'releases/resolve-source.mjs', requested))
         sha, version = result['commit'], result['release']
     else:
-        # mongo-tools uses an immutable commit as the release/build identity.
+        # Resolve the immutable build input separately from its GitHub release tag.
         ref = requested or 'master'
         if re.fullmatch(r'master-[0-9a-f]{7,12}', ref) and approved.startswith(ref.split('-')[1]):
             sha = approved
+        elif re.fullmatch(r'upstream-[0-9a-f]{40}', ref):
+            sha = ref.removeprefix('upstream-')
         elif re.fullmatch('[0-9a-f]{40}', ref):
             sha = ref
         else:
@@ -183,7 +185,8 @@ def prepare_version(root, config, text, missing, requested):
     kind = config['kind']
     if kind in {'node', 'mongosh', 'mongo-tools'}:
         if not missing:
-            return source_version(root, config, requested)
+            source = source_version(root, config, requested)
+            return 'upstream-' + source if kind == 'mongo-tools' else source
         published = latest(root, config)
         version = requested or (published[0] if published else '')
         if version not in published:

@@ -1,0 +1,18 @@
+diff --git a/vendor/github.com/nsf/termbox-go/syscalls_bsd.go b/vendor/github.com/nsf/termbox-go/syscalls_bsd.go
+--- a/vendor/github.com/nsf/termbox-go/syscalls_bsd.go
++++ b/vendor/github.com/nsf/termbox-go/syscalls_bsd.go
+@@ -1,4 +1,4 @@
+-//go:build darwin || freebsd || openbsd || netbsd
++//go:build darwin || freebsd || openbsd || netbsd || dragonfly
+ 
+ package termbox
+ 
+diff --git a/vendor/github.com/nsf/termbox-go/syscalls_nonbsd.go b/vendor/github.com/nsf/termbox-go/syscalls_nonbsd.go
+--- a/vendor/github.com/nsf/termbox-go/syscalls_nonbsd.go
++++ b/vendor/github.com/nsf/termbox-go/syscalls_nonbsd.go
+@@ -1,4 +1,4 @@
+-//go:build !darwin && !freebsd && !netbsd && !openbsd && !windows
++//go:build !darwin && !freebsd && !netbsd && !openbsd && !dragonfly && !windows
+ 
+ package termbox
+ 

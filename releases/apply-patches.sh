@@ -54,7 +54,7 @@ COMMIT="$(git -C toolssrc rev-parse HEAD)"
 SHORT_COMMIT="$(git -C toolssrc rev-parse --short HEAD)"
 SAFE_REF="$(printf '%s' "$REF" | tr '/[:space:]' '--' | tr -cd 'A-Za-z0-9._-')"
 VERSION="${SAFE_REF}-${SHORT_COMMIT}"
-[[ ! "$REF" =~ ^[0-9a-f]{40}$ ]] || VERSION="$REF"
+[[ ! "$REF" =~ ^[0-9a-f]{40}$ ]] || VERSION="upstream-$REF"
 echo "Cloned ${UPSTREAM_URL} ref ${REF} at commit ${COMMIT} (depth 1, single branch)."
 
 # Move the upstream tree up beside the patches checkout, so the build sees a

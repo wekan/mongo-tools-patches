@@ -125,7 +125,7 @@ run_apply() {   # <workspace> -> runs apply-patches.sh there, log in $TMP/apply.
   rm -rf "$1"; mkdir -p "$1/_patches"
   cp -r "$PATCHES"/. "$1/_patches/"
   ( cd "$1" && UPSTREAM_URL="file://$UP" \
-      bash _patches/releases/apply-patches.sh _patches master ) >"$TMP/apply.log" 2>&1
+      bash _patches/releases/apply-patches.sh _patches "${2:-master}" ) >"$TMP/apply.log" 2>&1
 }
 
 WS="$TMP/ws"
@@ -153,6 +153,19 @@ grep -q 'PATCHES_APPLIED=1' "$TMP/apply.log" \
 grep -Eq 'VERSION=master-[0-9a-f]{7,}' "$TMP/apply.log" \
   && ok "the build identity pins the master commit" \
   || fail "the master build identity is not commit-pinned"
+
+# A raw commit is a valid fetch input but GitHub rejects it as a release tag.
+commit="$(git -C "$UP" rev-parse master)"
+if run_apply "$TMP/ws-commit" "$commit"; then
+  grep -qx "VERSION=upstream-$commit" "$TMP/apply.log" \
+    && ok "immutable source gets a GitHub-safe release tag" \
+    || fail "raw commit was used as the release tag"
+  grep -qx "UPSTREAM_COMMIT=$commit" "$TMP/apply.log" \
+    && ok "full upstream commit remains recorded" \
+    || fail "upstream commit changed when formatting the release tag"
+else
+  fail "fetching an immutable source commit failed"
+fi
 
 # NEGATIVE: a patch whose checksum does not match must not be applied. The
 # checksum is verified BEFORE `git apply`, which is the whole reason it exists -
@@ -443,6 +456,9 @@ python3 "$ROOT/tests/release-telemetry.py" && ok "binary telemetry gates" || fai
 
 python3 "$ROOT/tests/telemetry-audit.py" && ok "telemetry source and vendor guards" \
   || fail "telemetry source and vendor guards failed"
+
+python3 "$ROOT/tests/dragonfly-terminal.py" && ok "terminal platform constraints (Go required)" \
+  || fail "terminal platform constraints failed"
 
 echo
 if [ "$fails" -eq 0 ]; then

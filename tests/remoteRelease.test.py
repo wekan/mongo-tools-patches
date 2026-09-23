@@ -30,6 +30,23 @@ class ReleaseTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_mongo_release_tag_and_source_commit_are_distinct(self):
+        sha = 'a' * 40
+        self.config.update(kind='mongo-tools', upstream={'url': 'unused', 'review': 'releases/upstream.json'})
+        (self.root / 'releases/upstream.json').write_text(json.dumps({'upstreamCommit': sha}))
+        tag = 'upstream-' + sha
+        self.assertEqual(r.source_version(self.root, self.config, tag), sha)
+        self.assertEqual(r.prepare_version(self.root, self.config, self.text, False, sha), tag)
+        with patch.object(r, 'latest', return_value=[tag]):
+            self.assertEqual(r.prepare_version(self.root, self.config, self.text, True, ''), tag)
+        # Published source pins remain usable after the baseline moves.
+        (self.root / 'releases/upstream.json').write_text(json.dumps({'upstreamCommit': 'b' * 40}))
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(r.source_version(self.root, self.config, tag), sha)
+        with patch.object(r, 'run', return_value=''):
+            with self.assertRaises(ValueError):
+                r.source_version(self.root, self.config, 'upstream-not-a-commit')
+
     def test_origin_url_formats(self):
         repo = json.loads((ROOT / 'releases/remote-release.json').read_text())['repo']
         accepted = [prefix + repo + suffix

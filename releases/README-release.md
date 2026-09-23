@@ -60,8 +60,10 @@ MongoDB Tools resolves an immutable upstream commit. Builds restore the existing
 locked Go 1.27.1 module graph, regenerate vendor, apply telemetry-removal patches
 and run automated source/binary checks. Dependency updates remain possible by
 editing the module files; changed hashes alone do not block them. New releases
-use the source commit as their identity; Missing preserves legacy master-HASH
-tags. Complete binary/checksum pairs are skipped; incomplete pairs are replaced
+use `upstream-<full source commit>` as their tag: GitHub rejects bare
+40-character commit hashes as tag names. Builds still fetch the exact commit.
+Missing resolves these prefixed tags back to the same source and preserves
+legacy master-HASH tags. Complete binary/checksum pairs are skipped; incomplete pairs are replaced
 together so their checksums match.
 
 Known dependency keyword false positives can be listed as exact lines under
@@ -78,3 +80,8 @@ A baseline file entry may include a `reason` for a verified reference/comment;
 that explanation is displayed only while its exact file hash still matches.
 New URLs, new suspicious keyword occurrences and denied hashes remain blocking.
 Do not exempt GitHub domains or whole patch directories to silence references.
+
+The vendor patch for termbox-go selects BSD terminal ioctls on DragonFly, fixing
+mongostat's undefined TCGETS/TCSETS build errors. With Go on PATH, run
+`python3 tests/dragonfly-terminal.py` to check patch application, reject duplicate
+application and verify Go file selection for DragonFly and five other targets.
