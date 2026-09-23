@@ -65,6 +65,21 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/6021ce53b68eddc535bbef014953d098515bcc20">Distinguish known upstream references from new audit findings</a>. Thanks to xet7.</summary>
+
+Check current upstream 9a37e4ece58a with the existing pinned, patched
+vendor tree: the risk scan passes without adding URL exemptions. Source
+fingerprint differences remain advisory.
+
+Report counts of known baseline URL matches. Print documented reference
+explanations only while the exact file hash matches. New URLs, suspicious
+keywords and denied hashes still fail; no whole-domain or patch-directory
+exemptions are added. Positive and negative audit tests pass. Full platform
+builds and publication were not run.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/8ed724c1ab5a6cf0a8504b66d19c152b8fbf2c56">Distinguish known dependency keyword false positives from new findings</a>. Thanks to xet7.</summary>
 
 Report documented, exact dependency keyword matches as known false
