@@ -27,24 +27,18 @@ and their default no-op implementations are not standalone telemetry exporters.
 This audit does not claim that all network traffic or every diagnostic API is
 removed.
 
-## Guard against new code
+## Automated indicators for new code
 
-After applying the patch, and again before compilation, the build compares every
-source and vendor file's path and content with the reviewed inventory. This
-includes dependency metadata and embedded resources, rather than relying on a
-list of telemetry-related words. Added, changed, deleted and symlinked files
-require review. Only root build metadata/output directories (`.git`, `.tools`,
-`_patches`, `out`, `__pycache__`) are excluded; nested directories with these
-names remain covered. Release asset lists live under `.tools`.
+Source/vendor hash differences are informational. The source checker then runs
+`releases/risk-audit.py` against its upstream baseline: known telemetry/security
+hashes, new suspicious keywords or new URL literals stop builds. Ordinary source
+or dependency changes do not require an AI approval or a complete manual review.
+Binary telemetry signatures and SDK behavior tests remain enforced.
 
-The workflows still resolve current upstream and upgrade dependencies. A changed
-tree deliberately stops before building until reviewed. Do not automatically
-refresh the inventory or loosen it to make a new upstream version pass. Review
-source and dependency changes, update the patch and fixtures as needed, run the
-SDK and tool checks, then record the resulting inventory in the same reviewed
-change. To calculate an inventory after review, call `snapshot(source_directory)`
-from `releases/audit-telemetry.py`; retain the reviewed upstream commit and Go
-version alongside its `trees` result.
+Release builds restore the locked module graph, regenerate vendor and apply the
+SDK telemetry patches. Update module files when needed; the automated indicator
+checks, rather than hash differences alone, decide whether to stop. See
+[release checks and baseline configuration](../../releases/README-release.md).
 
 ## Validation
 

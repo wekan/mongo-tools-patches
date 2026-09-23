@@ -49,10 +49,10 @@ on:
 permissions:
   contents: write
 
-# A DISTINCT group from release-all.yml's, so a fill-in run and a full run
-# serialize against their own kind without deadlocking on each other.
+# Share the full-release group: these workflows do not call one another,
+# and must not race while replacing incomplete binary/checksum pairs.
 concurrency:
-  group: mongo-tools-missing-${{ inputs.version || github.ref }}
+  group: mongo-tools-${{ inputs.version || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -66,14 +66,28 @@ jobs:
         with:
           path: _patches
 
+      - name: Check dependency risk indicators before release work
+        shell: bash
+        run: python3 _patches/releases/remote-release.py --audit
+
       - name: Fetch upstream mongo-tools and apply the patches
-        run: bash _patches/releases/apply-patches.sh _patches "${{ inputs.version }}"
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          SOURCE=$(python3 _patches/releases/remote-release.py --upstream-version all "$REQUESTED_VERSION")
+          bash _patches/releases/apply-patches.sh _patches "$SOURCE"
+          # Preserve legacy release names when completing an existing release.
+          if [[ "$REQUESTED_VERSION" =~ ^master-[0-9a-f]{7,12}$ ]]; then
+            echo "VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+            echo "TOOLS_VER=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+          fi
 
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version: '1.27.1'
 
-      - name: Upgrade dependencies, remove telemetry and audit source
+      - name: Restore reviewed dependencies, remove telemetry and audit source
         run: bash _patches/releases/update-dependencies.sh
 
       - name: What the release already has
@@ -126,16 +140,14 @@ jobs:
             exit 0
           fi
 
-          # No --clobber: everything here was absent from the release, so an
-          # upload that would overwrite something means the release changed
-          # under this run and is worth failing on rather than silently
-          # replacing a neighbour's bytes.
+          # Complete binary/checksum pairs are skipped during compilation.
+          # Replace incomplete pairs together so their checksums match.
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "${assets[@]}"
+            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" --title "$RELEASE_TAG" \
               --target "${{ github.sha }}" \
-              --notes "MongoDB Database Tools built from upstream mongodb/mongo-tools $SOURCE_REF at $UPSTREAM_COMMIT, using newest stable Go and upgraded dependencies, plus the patches in wekan/mongo-tools-patches."
+              --notes "MongoDB Database Tools built from upstream mongodb/mongo-tools $SOURCE_REF at $UPSTREAM_COMMIT, using reviewed Go toolchain and locked dependencies, plus the patches in wekan/mongo-tools-patches."
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"

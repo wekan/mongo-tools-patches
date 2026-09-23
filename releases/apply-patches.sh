@@ -42,11 +42,19 @@ echo "Building upstream MongoDB Database Tools ref ${REF}."
 #   --depth 1         just the tag's commit, no history behind it.
 # mongo-tools vendors its Go dependencies in-tree (vendor/), so there are no
 # submodules to init and no module download to do.
-git clone --quiet --depth 1 --single-branch --branch "$REF" "$UPSTREAM_URL" toolssrc
+if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+  git init -q toolssrc
+  git -C toolssrc remote add origin "$UPSTREAM_URL"
+  git -C toolssrc fetch --quiet --depth 1 origin "$REF"
+  git -C toolssrc checkout --quiet --detach FETCH_HEAD
+else
+  git clone --quiet --depth 1 --single-branch --branch "$REF" "$UPSTREAM_URL" toolssrc
+fi
 COMMIT="$(git -C toolssrc rev-parse HEAD)"
 SHORT_COMMIT="$(git -C toolssrc rev-parse --short HEAD)"
 SAFE_REF="$(printf '%s' "$REF" | tr '/[:space:]' '--' | tr -cd 'A-Za-z0-9._-')"
 VERSION="${SAFE_REF}-${SHORT_COMMIT}"
+[[ ! "$REF" =~ ^[0-9a-f]{40}$ ]] || VERSION="$REF"
 echo "Cloned ${UPSTREAM_URL} ref ${REF} at commit ${COMMIT} (depth 1, single branch)."
 
 # Move the upstream tree up beside the patches checkout, so the build sees a

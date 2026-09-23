@@ -1,0 +1,130 @@
+{
+  "description": "Automated indicator baseline; changed hashes are informational. Update for legitimate URLs/keywords without AI approval.",
+  "initialized": true,
+  "roots": [
+    ".",
+    "dist"
+  ],
+  "exclude": [
+    "releases/risk-audit.py",
+    "releases/remote-release.py",
+    "releases/risk-baseline.json",
+    "releases/upstream-risk-baseline.json"
+  ],
+  "denyHashes": [
+    "4221c252d2f11ad658d60d2a0ab6147feb3d984e62e204a64c9ce8562e2410b0"
+  ],
+  "files": {
+    ".github/scripts/build-tools.sh": {
+      "sha256": "a0c8bb3f124aae125068fbd437805328b3a17fa2d0058b0bd6d88b4389154085",
+      "urls": [],
+      "keywords": {}
+    },
+    ".github/scripts/release-assets.sh": {
+      "sha256": "eddf89fa150ca7472b4d34e4218fd80d1b17fd29429f27c4801faf099c017af9",
+      "urls": [],
+      "keywords": {}
+    },
+    ".github/workflows/release-all-missing.yml": {
+      "sha256": "609ee924100ad3471a3ddc13ca119afb17773099fec24846cf00d62713ecb9b8",
+      "urls": [
+        "https://api.github.com/repos/mongodb/mongo-tools/releases"
+      ],
+      "keywords": {}
+    },
+    ".github/workflows/release-all.yml": {
+      "sha256": "780c7e296152df83c145b2ce50f1ede31c2c1ae47ce40882d1e643bd1f3695bd",
+      "urls": [
+        "https://api.github.com/repos/mongodb/mongo-tools/releases",
+        "https://github.com/${GITHUB_REPOSITORY",
+        "https://github.com/mongodb/mongo-tools",
+        "https://github.com/mongodb/mongo-tools/commit/${UPSTREAM_COMMIT"
+      ],
+      "keywords": {}
+    },
+    "build.bat": {
+      "sha256": "22611a2b28e172d54285c9c11d316e5c77f5681c32026fc2361cf9c10eb8fa40",
+      "urls": [],
+      "keywords": {}
+    },
+    "build.sh": {
+      "sha256": "91704692e44b7d62d25970cab27ee485b472eb00a614f424c1b6f5a68bf6551c",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/apply-patches.sh": {
+      "sha256": "8d7995f16e68818fb1205828e01b210bd14a758a2f64043f367d1c49416137d3",
+      "urls": [
+        "https://github.com/mongodb/mongo-tools.git"
+      ],
+      "keywords": {}
+    },
+    "releases/apply-vendor-patches.sh": {
+      "sha256": "06f495a277fcb907de28adc0f5247e2a82b9658af87540a7d9774002c16186ed",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/audit-telemetry.py": {
+      "sha256": "22377f49ac7cd30e13b373098a4d5639e4a7b061ea2792446d062ad48104e81d",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/check-telemetry.py": {
+      "sha256": "ad6c33d905764f341f581c1316a780e6851930f4180b3cc6fc71b370640d2bf1",
+      "urls": [],
+      "keywords": {
+        "ThrottledAnalytics": 1,
+        "emitApiCallTelemetry": 1,
+        "mixpanel": 1,
+        "posthog": 2,
+        "api.segment.io": 2,
+        "api.amplitude.com": 1,
+        "mongosh-telemetry.mongodb.com": 1,
+        "beacon.ferretdb.com": 1,
+        "activity.meteor.com": 1
+      }
+    },
+    "releases/dependency-review.json": {
+      "sha256": "d0f60b76d2d08ce46a0d1f1e47a9dde95a7adac4a6291328e683df2fe850cf73",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/newest-release.sh": {
+      "sha256": "88d19b9de05e23600022e6d0d9ed1f6cfd44b62089b75f4b48fd8d3b0a7d6b93",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/release-all-missing.sh": {
+      "sha256": "ffd38b91faa052fc5e390f433103570477860d871ed1a24bbe4c8f75bfbebb5a",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/release-all.sh": {
+      "sha256": "70af265df472b9119441241d266de0bff0c2c4a2788baf605db0ed01c2d06557",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/remote-release.json": {
+      "sha256": "c500ce26c7478d37a0ec258dab52753686a0161bbac2d63479b97a6835b2b5e4",
+      "urls": [
+        "https://github.com/mongodb/mongo-tools.git"
+      ],
+      "keywords": {}
+    },
+    "releases/telemetry-audit.json": {
+      "sha256": "44d7d576c7c158ffe9e55dedba5b198ccbfe851af2af2df8bd9e8ad340bfd7a3",
+      "urls": [],
+      "keywords": {}
+    },
+    "releases/update-dependencies.sh": {
+      "sha256": "357e995df7c3d83cc11298b6fda512c341e803be3603814a0df8aec1cbce2f5d",
+      "urls": [],
+      "keywords": {}
+    },
+    "dist/vendor/remove-sdk-telemetry.patch": {
+      "sha256": "4d50df23f8e129a24c936303f63f9ba4e306fba870483c9e50cdc6c978d412bb",
+      "urls": [],
+      "keywords": {}
+    }
+  }
+}

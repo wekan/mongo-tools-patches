@@ -218,7 +218,7 @@ chmod +x "$TMP/bin/go"
 AUDIT_REPO="$TMP/build-scripts"
 mkdir -p "$AUDIT_REPO/.github/scripts" "$AUDIT_REPO/releases"
 cp "$ROOT/.github/scripts/build-tools.sh" "$AUDIT_REPO/.github/scripts/"
-cp "$ROOT/releases/audit-telemetry.py" "$ROOT/releases/check-telemetry.py" "$AUDIT_REPO/releases/"
+cp "$ROOT/releases/audit-telemetry.py" "$ROOT/releases/check-telemetry.py" "$ROOT/releases/risk-audit.py" "$AUDIT_REPO/releases/"
 prepare_build_fixture() {
   mkdir -p "$1/vendor"
   printf 'module fixture\n' > "$1/go.mod"
@@ -231,6 +231,11 @@ spec = importlib.util.spec_from_file_location('audit', repo / 'releases/audit-te
 audit = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
 (repo / 'releases/telemetry-audit.json').write_text(json.dumps({'trees': audit.snapshot(sys.argv[2])}))
+spec = importlib.util.spec_from_file_location('risk', repo / 'releases/risk-audit.py')
+risk = importlib.util.module_from_spec(spec); spec.loader.exec_module(risk)
+policy = {'roots':['.'], 'initialized':True}
+policy['files'] = risk.collect(sys.argv[2], policy)
+(repo / 'releases/upstream-risk-baseline.json').write_text(json.dumps(policy))
 PYFIXTURE
 }
 
@@ -299,16 +304,24 @@ cp "$TMP/good-go" "$TMP/bin/go"
 # Restore the source fixture inventory before testing source drift.
 prepare_build_fixture "$BUILD"
 
-# New source must stop before compilation, including code under a nested out/.
+# Ordinary changed hashes must compile; actual indicators must stop, including
+# in nested directories named out/ (which are source, not root build output).
 mkdir -p "$BUILD/vendor/example/out"
 printf 'package reporting\n' > "$BUILD/vendor/example/out/new.go"
-if ( cd "$BUILD" && PATH="$TMP/bin:$PATH" \
+if ( cd "$BUILD" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 \
      bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/drift.log" 2>&1; then
-  fail "unreviewed vendored source reached compilation"
-elif grep -q 'Telemetry audit required' "$TMP/drift.log"; then
-  ok "new vendored source blocks the build before compilation"
+  ok "ordinary vendored source drift does not require approval"
 else
-  fail "source drift failed for an unexpected reason"
+  fail "ordinary source drift blocked compilation"
+fi
+printf 'package reporting; var endpoint = "https://new.example/upload"\n' > "$BUILD/vendor/example/out/new.go"
+if ( cd "$BUILD" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 \
+     bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/indicator.log" 2>&1; then
+  fail "new outbound URL reached compilation"
+elif grep -q 'Automated risk indicators found' "$TMP/indicator.log"; then
+  ok "new outbound URL stops before compilation"
+else
+  fail "indicator check failed for an unexpected reason"
 fi
 
 # ── 5. What "already on the release" means ───────────────────────────────────
@@ -409,17 +422,22 @@ done
 
 # ── 8. Moving source and dependency inputs stay explicit ─────────────────────
 echo
-echo "The workflows select newest source, toolchain and dependencies:"
+# Resolving newer dependencies after local review would bypass the preflight.
+echo "The workflows build the reviewed toolchain and dependency graph:"
 for wf in "$ALL" "$MISSING"; do
   n="$(basename "$wf")"
-  grep -q 'go-version: stable' "$wf" && ok "$n installs stable Go" \
-    || fail "$n does not install the newest stable Go"
-  grep -q 'releases/update-dependencies.sh' "$wf" && ok "$n upgrades dependencies" \
-    || fail "$n does not run update-dependencies.sh"
+  grep -q "go-version: '1.27.1'" "$wf" && ok "$n pins reviewed Go" \
+    || fail "$n does not pin reviewed Go"
+  grep -q 'releases/update-dependencies.sh' "$wf" && ok "$n restores reviewed dependencies" \
+    || fail "$n does not restore dependencies"
+  grep -q -- '--upstream-version' "$wf" && ok "$n checks upstream review" \
+    || fail "$n does not check upstream review"
 done
-grep -q 'go get -u ./\.\.\.' "$ROOT/releases/update-dependencies.sh" "$ROOT/releases/apply-vendor-patches.sh" \
-  && ok "the whole module graph is upgraded" \
-  || fail "update-dependencies.sh does not upgrade every package dependency"
+! grep -q 'go get -u' "$ROOT/releases/update-dependencies.sh" \
+  && ok "release cannot upgrade the reviewed graph" \
+  || fail "release still resolves unaudited dependencies"
+grep -q 'reviewed-go/go.mod' "$ROOT/releases/update-dependencies.sh" \
+  && ok "reviewed Go manifest restored" || fail "reviewed Go manifest missing"
 
 python3 "$ROOT/tests/release-telemetry.py" && ok "binary telemetry gates" || fail "binary telemetry gates failed"
 

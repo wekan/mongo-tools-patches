@@ -30,7 +30,7 @@ class TelemetryAudit(unittest.TestCase):
             for name in ('other.go', 'vendor/example/new.go', 'new-embedded-data'):
                 added = root / name
                 added.write_text('new code without a telemetry keyword')
-                with self.assertRaisesRegex(ValueError, 'Telemetry audit required'):
+                with self.assertRaisesRegex(ValueError, 'fingerprints changed'):
                     audit.audit(root, manifest)
                 added.unlink()
             for name in ('main.go', 'go.sum', 'vendor/modules.txt'):

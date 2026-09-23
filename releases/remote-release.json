@@ -1,0 +1,17 @@
+{
+  "repo": "wekan/mongo-tools-patches",
+  "kind": "mongo-tools",
+  "branch": "main",
+  "upcoming": "# Upcoming mongo-tools-patches release",
+  "audits": [],
+  "upstream": {
+    "url": "https://github.com/mongodb/mongo-tools.git",
+    "review": "releases/telemetry-audit.json"
+  },
+  "indicatorCommand": [
+    "python3",
+    "releases/risk-audit.py",
+    "--source",
+    "."
+  ]
+}
