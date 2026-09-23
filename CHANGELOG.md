@@ -65,6 +65,19 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/62207c445449bbb826e7c06f166ad19ba8c900c6">Fix Windows release source paths and allow scoped version links</a>. Thanks to xet7.</summary>
+
+Pass a shell-relative checkout path to the Node release resolver so
+Git Bash does not receive a native Windows path. This fixes the shared
+win64 and win-arm64 source-selection failure before compilation.
+Optional per-file URL patterns permit explicitly configured version
+links while other new hosts, paths and query strings still fail.
+Offline positive and negative release and indicator tests pass; native
+Windows builds and hosted publication were not run.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/c5c5fc193726395fb656e14cd813be6bfa044cd9">Accept valid GitHub SSH origins in release launchers</a>. Thanks to xet7.</summary>
 
 Release All and Release All Missing accept HTTPS and SSH clone URLs
