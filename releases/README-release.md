@@ -72,3 +72,9 @@ review. No wildcard module exemptions or automatic baselining are used.
 Source and binary risk checks run independently and are never suppressed by
 these metadata classifications. An empty classification list means no existing
 matches have been verified, not that future matches are safe.
+
+Upstream indicator audits print the number of known baseline URL matches.
+A baseline file entry may include a `reason` for a verified reference/comment;
+that explanation is displayed only while its exact file hash still matches.
+New URLs, new suspicious keyword occurrences and denied hashes remain blocking.
+Do not exempt GitHub domains or whole patch directories to silence references.

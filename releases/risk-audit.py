@@ -74,6 +74,7 @@ def inspect(root, policy):
         print('::warning::No URL baseline yet; checking known hashes and keywords only.', file=sys.stderr)
     findings = []
     changed = 0
+    known_url_count = 0
     for name, entry in actual.items():
         old = baseline.get(name, {})
         if entry['sha256'] != old.get('sha256'):
@@ -83,7 +84,11 @@ def inspect(root, policy):
         for keyword, count in entry['keywords'].items():
             if count > old.get('keywords', {}).get(keyword, 0):
                 findings.append(name + ': new suspicious keyword ' + keyword)
+        if old.get('reason') and entry['sha256'] == old.get('sha256'):
+            print(f'Info: {name}: known reference: {old["reason"]}')
         for url in entry['urls']:
+            if url in known_urls:
+                known_url_count += 1
             allowed = any(re.fullmatch(pattern, url) for pattern in
                           policy.get('allowUrlPatternsByFile', {}).get(name, []))
             if initialized and url not in known_urls and not allowed:
@@ -94,6 +99,8 @@ def inspect(root, policy):
     for name in set(baseline) - set(actual):
         changed += 1
     print(f'Automated dependency/source check: {len(actual)} files, {changed} changed hashes (informational).')
+    if initialized:
+        print(f'Known baseline URL matches: {known_url_count}; new URLs and suspicious keywords remain checked.')
     if findings:
         raise ValueError('\n'.join(findings[:40]) +
                          ('\nAdditional findings omitted.' if len(findings) > 40 else '') +
