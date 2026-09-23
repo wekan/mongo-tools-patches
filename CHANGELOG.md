@@ -26,9 +26,8 @@ in by the build from the ref and exact commit it cloned.
 - A moving ref never reuses a release. Its identity combines the ref with Git's short
   commit hash, for example `master-575cf6b`, while the full hash remains in every
   binary and its release notes.
-- There is ONE patch section, `dist/all/`, applied to every target. One checkout
-  cross-compiles all forty-two platforms here, so a patch that concerns one GOOS
-  or GOARCH carries a Go build constraint rather than a section of its own. See
+- Source patches in `dist/all/` run after cloning; SDK patches in `dist/vendor/`
+  run after dependency regeneration. Both apply to every target. See
   [dist/README.md](dist/README.md).
 - Each patch is a `*.patch` file with a `*.sha256sum` (the checksum of the patch file)
   and a `*.md` (what the patch does). The build clones upstream at the selected ref,
@@ -75,20 +74,26 @@ commits.
 This release follows current upstream development:
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/1700c01">Document that mongo-tools has no telemetry, and pin it against upstream</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/8a34332">Remove cloud SDK reporting after vendoring and audit every source change</a>. Thanks to xet7.</summary>
 
-Checked upstream `mongodb/mongo-tools` source (outside `vendor/`) for an
-analytics client, a phone-home reporter, or a `--telemetry`/`DO_NOT_TRACK`
-flag of its own, the same way wekan/mongosh-patches and this fork's
-FerretDB were checked before their telemetry was patched out. There is
-none: the only "telemetry" match anywhere in the tree is the vendored Azure
-SDK's `policy_telemetry.go`, which builds a `User-Agent` header for the
-tools' optional Azure Key Vault/KMS HTTP calls, not a usage-data collector,
-and it is third-party vendored code this repository does not patch.
-README.md now says so directly. `tests/no-telemetry-upstream.sh` re-checks
-this against the current upstream ref rather than leaving it a one-time
-claim, so a future mongo-tools release that adds real telemetry is caught
-here instead of silently missed.
+The previous audit found no standalone tools usage reporter but missed dependency
+reporting. Remove Azure/MSAL client identification headers and AWS SDK v1/v2
+runtime, environment, feature and credential-source reporting implementations.
+Apply the checksum-verified vendor patch after dependency regeneration so the
+upgrade cannot restore it, and disable Go toolchain telemetry.
+
+Both preparation and compilation now compare source and vendor inventories with
+the reviewed tree. New upstream or dependency code stops the build for review,
+including code without telemetry-related keywords. Keep the release asset list
+outside audited source files. Authentication, database handshakes, cloud
+operations, request correlation and local diagnostic hooks remain functional.
+
+Verified upstream `5e7290222cae7ebd5eade59bc19d6f25b637a1d3` with refreshed
+dependencies and Go 1.27.1: all eight tools compiled and ran `--version` on macOS
+ARM64, five SDK packages passed request-path tests with fake transports, BSON
+conversion passed, and offline workflow/patch/audit regression tests passed.
+The full platform matrix and live cloud/database integrations were not run.
+See [the audit and update procedure](docs/Design/Telemetry-audit.md).
 
 </details>
 
