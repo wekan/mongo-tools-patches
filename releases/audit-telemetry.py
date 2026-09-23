@@ -52,5 +52,5 @@ if __name__ == '__main__':
         result = audit(Path(sys.argv[1] if len(sys.argv) > 1 else '.'), manifest)
         print('Telemetry audit passed: ' + ', '.join('%s=%s files' % (k, v['files']) for k, v in result.items()))
     except (ValueError, OSError, KeyError) as error:
-        print(str(error), file=sys.stderr)
+        print('::error::Telemetry audit failed: ' + str(error), file=sys.stderr)
         sys.exit(1)

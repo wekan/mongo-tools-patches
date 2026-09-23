@@ -218,7 +218,7 @@ chmod +x "$TMP/bin/go"
 AUDIT_REPO="$TMP/build-scripts"
 mkdir -p "$AUDIT_REPO/.github/scripts" "$AUDIT_REPO/releases"
 cp "$ROOT/.github/scripts/build-tools.sh" "$AUDIT_REPO/.github/scripts/"
-cp "$ROOT/releases/audit-telemetry.py" "$AUDIT_REPO/releases/"
+cp "$ROOT/releases/audit-telemetry.py" "$ROOT/releases/check-telemetry.py" "$AUDIT_REPO/releases/"
 prepare_build_fixture() {
   mkdir -p "$1/vendor"
   printf 'module fixture\n' > "$1/go.mod"
@@ -280,6 +280,24 @@ grep -q '  mongodump-amd64$' "$BUILD/out/mongodump-amd64.sha256sum" \
 [ -e "$BUILD/out/mongodump-win64.exe" ] && [ -e "$BUILD/out/mongodump-win64.exe.sha256sum" ] \
   && ok "Windows targets get .exe, with the checksum named after it" \
   || fail "the Windows binary or its checksum is missing/misnamed"
+
+# A compiled telemetry implementation is fatal, not a skipped architecture.
+cp "$TMP/bin/go" "$TMP/good-go"
+sed 's/stub binary/beacon.ferretdb.com/' "$TMP/good-go" > "$TMP/bin/go"
+BAD_BINARY="$TMP/bad-binary"
+prepare_build_fixture "$BAD_BINARY"
+if ( cd "$BAD_BINARY" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 \
+     bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/bad-binary.log" 2>&1; then
+  fail "telemetry in a compiled artifact did not stop the matrix"
+elif grep -q '::error::Telemetry audit failed' "$TMP/bad-binary.log" &&
+     ! grep -q 'skipped .*does not compile' "$TMP/bad-binary.log"; then
+  ok "telemetry in a compiled artifact stops the matrix with an error"
+else
+  fail "binary telemetry failure was swallowed or reported as unsupported"
+fi
+cp "$TMP/good-go" "$TMP/bin/go"
+# Restore the source fixture inventory before testing source drift.
+prepare_build_fixture "$BUILD"
 
 # New source must stop before compilation, including code under a nested out/.
 mkdir -p "$BUILD/vendor/example/out"
@@ -402,6 +420,8 @@ done
 grep -q 'go get -u ./\.\.\.' "$ROOT/releases/update-dependencies.sh" "$ROOT/releases/apply-vendor-patches.sh" \
   && ok "the whole module graph is upgraded" \
   || fail "update-dependencies.sh does not upgrade every package dependency"
+
+python3 "$ROOT/tests/release-telemetry.py" && ok "binary telemetry gates" || fail "binary telemetry gates failed"
 
 python3 "$ROOT/tests/telemetry-audit.py" && ok "telemetry source and vendor guards" \
   || fail "telemetry source and vendor guards failed"

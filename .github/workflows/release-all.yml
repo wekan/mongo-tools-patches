@@ -83,7 +83,7 @@ jobs:
         with:
           go-version: stable
 
-      - name: Upgrade all dependencies and regenerate vendor
+      - name: Upgrade dependencies, remove telemetry and audit source
         run: bash _patches/releases/update-dependencies.sh
 
       - name: Cross-compile every tool for every platform

@@ -10,9 +10,11 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
   echo 'Vendor patching must run at the Git repository root' >&2; exit 1;
 }
 for patch in "$root"/dist/vendor/*.patch; do
-  [ -f "$patch" ] || { echo 'Telemetry removal patch is missing' >&2; exit 1; }
+  [ -f "$patch" ] || { echo '::error::Telemetry removal patch is missing' >&2; exit 1; }
   (cd "$(dirname "$patch")" && sha256sum -c "$(basename "$patch" .patch).sha256sum")
-  git apply --check "$patch"
-  git apply "$patch"
+  git apply --check "$patch" && git apply "$patch" || {
+    echo "::error::Telemetry removal patch failed: $patch. Review the updated dependency source." >&2
+    exit 1
+  }
 done
 python3 "$root/releases/audit-telemetry.py" .

@@ -33,6 +33,7 @@
 
 set -uo pipefail
 export GOTELEMETRY=off
+audit_binary="$(cd "$(dirname "$0")/../../releases" && pwd)/check-telemetry.py"
 python3 "$(dirname "$0")/../../releases/audit-telemetry.py" . || exit 1
 
 out="${OUT:-out}"
@@ -127,6 +128,8 @@ while read -r name goos goarch goarm; do
         if CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOARM="$arm" \
              go build -trimpath -ldflags "$LDFLAGS" \
              -o "$out/$asset" "./${tool}/main" 2>"$tmp_root/${tool}-${name}.log"; then
+            # A telemetry failure is fatal, never an unsupported-target skip.
+            python3 "$audit_binary" --kind mongo-tools "$out/$asset" || exit 1
             echo "  built   $asset"
             built=$((built + 1))
         else
@@ -153,9 +156,10 @@ ls -1 "$out" 2>/dev/null || true
     for f in *; do
         [ -e "$f" ] || continue
         case "$f" in *.sha256sum) continue ;; esac
+        python3 "$audit_binary" --kind mongo-tools "$f" || exit 1
         sha256sum "$f" > "${f}.sha256sum"
     done
-)
+) || exit 1
 
 # Nothing built AND nothing skipped-as-existing is a real failure: it means the
 # toolchain is broken rather than the release being complete.

@@ -63,3 +63,16 @@ All eight tools compiled with CGO disabled and ran `--version` on macOS ARM64
 using Go 1.27.1. The SDK tests passed for all five tested packages. The full
 platform matrix was checked with a compiler stub, not cross-compiled in this
 audit. Live MongoDB, AWS and Azure integration tests were not run.
+
+## Native artifact gate
+
+Both release workflows now scan each successful native output before counting it
+as built or writing checksums. A matching removed SDK implementation or reporting
+endpoint emits `::error::Telemetry audit failed` and exits the entire matrix;
+it cannot be classified as an unsupported target. Source audit failures use the
+same log annotation. The workflow fixture tests this fatal path with a deliberately
+contaminated compiler output. All eight local native executables passed.
+
+This scan detects known implementation/endpoint signatures even in stripped Go
+binaries, but is not proof that arbitrary encoded machine code cannot transmit
+data. Retain source/vendor review and the SDK request tests alongside it.
