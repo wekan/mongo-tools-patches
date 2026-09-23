@@ -65,6 +65,27 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/988f62e7afee2a9c60a33a40cf22b18da8a8ff7c">Fix release tags and DragonFly mongostat builds</a>. Thanks to xet7.</summary>
+
+Use `upstream-<full commit>` release tags while fetching the exact source
+commit. GitHub rejects bare commit hashes as tags. Release All Missing
+resolves the prefixed tag back to the same source; legacy master tags
+retain their existing names.
+
+Patch termbox-go after dependency vendoring so DragonFly selects BSD
+terminal constants. This fixes mongostat's undefined TCGETS/TCSETS errors
+without changing the selection on other platforms.
+
+Offline workflow, release, risk and platform-selection tests pass,
+including invalid tags and repeated patch application. The original
+DragonFly failure was reproduced; patched mongostat cross-compiles for
+DragonFly amd64 and builds and starts with `--version` on macOS arm64.
+Source and DragonFly binary telemetry checks pass. The complete platform
+matrix and GitHub publication were not run locally.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/6021ce53b68eddc535bbef014953d098515bcc20">Distinguish known upstream references from new audit findings</a>. Thanks to xet7.</summary>
 
 Check current upstream 9a37e4ece58a with the existing pinned, patched
