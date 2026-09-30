@@ -27,6 +27,49 @@ and their default no-op implementations are not standalone telemetry exporters.
 This audit does not claim that all network traffic or every diagnostic API is
 removed.
 
+## What the shipped tools link
+
+Verified on 2026-09-30 against upstream `master` commit
+`385892da0b900a84c2609df24a318ef12eb4d8d2` with Go 1.27.1, using
+`go list -deps` on each tool's `main` package and a network capture of the
+patched tools. Three points the sections above do not make on their own:
+
+1. **The shipped tools link Azure and MSAL, but no AWS SDK.** All eight tools
+   depend on `azure-sdk-for-go` and MSAL Go. None depends on AWS SDK Go v1 or
+   v2: upstream imports AWS SDK v2 only in its release tooling
+   (`release/aws`) and AWS SDK v1 only through its build tool (`goke`),
+   neither of which is shipped. The Azure/MSAL removal is therefore the part
+   that changes the shipped binaries; the AWS removal protects against a
+   future upstream change that links an AWS SDK into a tool. It follows that
+   the binary gate's AWS signatures cannot currently match a tool binary. An
+   unpatched build fails the gate on the Azure and MSAL signatures alone
+   (`azsdk-go-%s/%s`, `formatTelemetry` and the six `x-client-*` headers),
+   which is what shows the gate is effective for these tools.
+
+2. **AWS SDK Go v1 Client Side Monitoring remains in `vendor/`, unpatched.**
+   `aws/csm` sends one metric per AWS API call over UDP to `AWS_CSM_HOST`
+   (default `127.0.0.1:31000`) when `AWS_CSM_ENABLED` or `csm_enabled` in the
+   shared AWS config turns it on; the host can be remote. It is reached only
+   through `aws/session`, and no tool links `aws/session` (point 1), so it is
+   not in any shipped binary. It is recorded here so that an upstream change
+   linking AWS SDK v1 into a tool is reviewed for it: patch it out then, or
+   confirm it stays opt-in.
+
+3. **The MongoDB driver's handshake metadata is kept, deliberately.** The
+   tools link `go.mongodb.org/mongo-driver/v2`, whose connection handshake
+   (`internal/handshake/operation/hello.go`) sends the connected server the
+   driver name and version, OS type and architecture, the Go version, and an
+   `env` document: the serverless platform (AWS Lambda, Azure Functions, GCP,
+   Vercel) with its region, memory and timeout, and Docker/Kubernetes
+   container detection. It goes only to the database server the user connects
+   to - for MongoDB Atlas, that is MongoDB's service - and is part of the
+   ordinary database handshake this audit keeps. It is not patched; removing
+   the `env` and OS details would be a separate decision.
+
+A packet capture of all eight patched tools importing, exporting, dumping,
+restoring and monitoring a MongoDB container showed traffic only to that
+database and DNS answers only for its host name.
+
 ## Automated indicators for new code
 
 Source/vendor hash differences are informational. The source checker then runs
