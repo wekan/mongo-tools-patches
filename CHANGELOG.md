@@ -65,6 +65,19 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3e0dbf968f15fe0703bd64f21bb93b621632e86b">Record what the shipped tools link in the telemetry audit</a>. Thanks to xet7.</summary>
+
+Validated against upstream master 385892da with Go 1.27.1: the patches apply,
+the SDK tests pass, all eight tools pass the binary gate on macOS arm64 and
+Linux amd64 while an unpatched build fails it, and a packet capture shows the
+tools talking only to the database. The audit now states that the tools link
+Azure and MSAL but no AWS SDK, that AWS SDK v1 Client Side Monitoring stays in
+vendor/ unreachable, and that the driver's handshake metadata is kept on
+purpose.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/988f62e7afee2a9c60a33a40cf22b18da8a8ff7c">Fix release tags and DragonFly mongostat builds</a>. Thanks to xet7.</summary>
 
 Use `upstream-<full commit>` release tags while fetching the exact source
