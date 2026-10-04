@@ -28,6 +28,14 @@ name: Release All
 # that fails to compile is skipped and reported, never fatal: the build says
 # which, and that is the moment a patch in dist/ becomes worth writing.
 #
+# EACH BINARY IS ON THE RELEASE AS SOON AS IT IS FINISHED. The release is
+# created (empty) before the build, and build-tools.sh attaches every binary
+# with its .sha256sum the moment it has compiled and passed the telemetry audit
+# (MONGO_TOOLS_PUBLISH) - so mongodump-amd64 is downloadable while the other 343
+# are still compiling, and a CANCELLED run keeps everything it finished: an
+# always() step attaches any finished binary whose upload was cut short
+# (attach-finished.sh), and the last step checks none is missing.
+#
 # A release ACCUMULATES: a run's freshly built binaries overwrite their own old
 # copies (gh release upload --clobber) and every other asset is left in place, so
 # all platforms of a version collect on one release across however many runs it
@@ -100,26 +108,61 @@ jobs:
       - name: Restore reviewed dependencies, remove telemetry and audit source
         run: bash _patches/releases/update-dependencies.sh
 
-      # id: build, so the publish steps below can run even when the run is
-      # CANCELLED after this step finished: a cancel then still attaches every
-      # binary that was built and passed the build's own checks. A cancel
-      # DURING this step attaches nothing - the binary telemetry audit and the
-      # checksums run at the end of build-tools.sh, so a half-finished out/ is
-      # unchecked. Release All Missing builds what is left.
-      - name: Cross-compile every tool for every platform
+      # The release has to exist BEFORE the build, because each binary is
+      # attached to it the moment it is finished. It is created empty, with
+      # placeholder notes; the real notes are written once the build is over.
+      # --target pins a NEW tag to the commit that was built rather than to
+      # whatever the default branch has moved to since.
+      - name: Create the release, so each binary can be attached as it is built
+        id: release
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GH_REPO, because gh works out WHICH repository to talk to from the
+          # git remote of the working directory - and after apply-patches.sh the
+          # working directory is the UPSTREAM clone, whose origin is
+          # mongodb/mongo-tools. Without this, the first run's publish answered
+          #   HTTP 403: Resource not accessible by integration
+          #   (https://api.github.com/repos/mongodb/mongo-tools/releases)
+          # after building all 128 binaries: it was trying to create the release
+          # on MongoDB's repository, which this token has no business writing to.
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --target "${{ github.sha }}" \
+              --notes "Building. Each binary and its .sha256sum is attached here as soon as it is built and checked; these notes are replaced when the build is over."
+          fi
+
+      # build-tools.sh compiles, audits and checksums one binary at a time and
+      # hands each finished one to MONGO_TOOLS_PUBLISH, so it is on the release
+      # while the rest still compile. A failed attach does not stop the build;
+      # the step fails at the end, and the steps below attach what is missing.
+      - name: Cross-compile every tool for every platform, attaching each as it is done
         id: build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}   # see "Create the release" above
+          MONGO_TOOLS_PUBLISH: ${{ inputs.publish && format('{0}/_patches/.github/scripts/upload-release-assets.sh', github.workspace) || '' }}
         run: bash _patches/.github/scripts/build-tools.sh
 
+      # always(): these run after a CANCEL too, so a cancelled run keeps every
+      # binary it finished. They depend on the RELEASE step, not the build: a
+      # build that was cancelled or failed half way has still finished some
+      # binaries, and attach-finished.sh attaches only those - never a file whose
+      # audit or checksum did not complete.
       - name: Compose the release notes
-        if: ${{ always() && inputs.publish && steps.build.outcome == 'success' }}
+        if: ${{ always() && inputs.publish && steps.release.outcome == 'success' }}
         run: |
           set -euo pipefail
           git log --oneline --no-decorate -30 > upstream-notes.md
 
-          # What this run produced, for the platform line. The checksums are not
-          # platforms, so they are filtered out the way node-patches' publish job
-          # filters its own.
-          plats="$( (ls out 2>/dev/null || true) | grep -v '\.sha256sum$' \
+          # What this run FINISHED, for the platform line - the finished list,
+          # not out/, because after a cancel out/ can hold a binary whose
+          # compile or audit never completed. Checksums are not listed there.
+          plats="$( (cat .tools/finished.list 2>/dev/null || true) \
             | sed -n 's#^mongodump-##p' | sed 's#\.exe$##' | sort -u | tr '\n' ' ')"
 
           {
@@ -154,50 +197,28 @@ jobs:
           echo "----- release notes for $VERSION -----"
           cat release-notes.md
 
-      - name: Create or update the release, with a binary per tool per platform
-        if: ${{ always() && inputs.publish && steps.build.outcome == 'success' }}
+      - name: Attach any finished binary that is not on the release yet, and the notes
+        if: ${{ always() && inputs.publish && steps.release.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # GH_REPO, because gh works out WHICH repository to talk to from the
-          # git remote of the working directory - and after apply-patches.sh the
-          # working directory is the UPSTREAM clone, whose origin is
-          # mongodb/mongo-tools. Without this, the first run's publish answered
-          #   HTTP 403: Resource not accessible by integration
-          #   (https://api.github.com/repos/mongodb/mongo-tools/releases)
-          # after building all 128 binaries: it was trying to create the release
-          # on MongoDB's repository, which this token has no business writing to.
-          GH_REPO: ${{ github.repository }}
+          GH_REPO: ${{ github.repository }}   # see "Create the release" above
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          assets=( out/* )
-          if [ ${#assets[@]} -eq 0 ]; then
-            echo "::error::No binaries were built - nothing to publish."
-            exit 1
+          bash _patches/.github/scripts/attach-finished.sh "$RELEASE_TAG"
+          if [ -f release-notes.md ]; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
           fi
-          # The release is created EMPTY when it does not exist yet, and every
-          # file is then attached by upload-release-assets.sh, which retries a
-          # failed upload with only what is still missing. `gh release create`
-          # with the files on it was one attempt: a single failed asset left a
-          # half-populated release and failed the run that had just built it.
-          # --target pins a NEW tag to the commit that was built rather than to
-          # whatever the default branch has moved to since.
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit   "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
-          else
-            gh release create "$RELEASE_TAG" \
-              --title "$RELEASE_TAG" \
-              --target "${{ github.sha }}" \
-              --notes-file release-notes.md
-          fi
-          # This is the job that built and checked these files, and this is its
-          # last step: they go on the release now, each binary with its
-          # .sha256sum, without waiting on anything else. --clobber (inside the
-          # script) replaces a re-run's copies in place. Assets this run did NOT
-          # build are LEFT ALONE: the release ACCUMULATES every platform of this
-          # version, which is the whole point of Release All Missing - one target
-          # that fails today must not cost the release the binaries the others
-          # already published.
-          bash _patches/.github/scripts/upload-release-assets.sh "$RELEASE_TAG" "${assets[@]}"
+
+      # Last: every binary this run finished must be on the release. The build
+      # step already failed if an attach did; this says WHICH, after the
+      # catch-up above had its chance.
+      - name: Check that every finished binary is on the release
+        if: ${{ always() && inputs.publish && steps.release.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}   # see "Create the release" above
+        run: |
+          set -euo pipefail
+          bash _patches/.github/scripts/attach-finished.sh "$RELEASE_TAG" --check
           echo "The release now carries these assets (accumulated across runs):"
           gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name'

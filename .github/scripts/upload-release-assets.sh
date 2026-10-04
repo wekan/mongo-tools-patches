@@ -3,11 +3,12 @@
 # upload-release-assets.sh <tag> <file>... - attach files to an EXISTING GitHub
 # Release, replacing assets of the same name (--clobber), with retries.
 #
-# Both release workflows call this as the LAST step of the job that built and
-# checked the files, so a binary is on the release as soon as its own job is done
-# and never waits for anything else. The release must already exist; the
-# workflow creates it (empty) first, so that a failed upload can never leave
-# `gh release create` half done with no way to retry it.
+# build-tools.sh calls this (as MONGO_TOOLS_PUBLISH) once per binary, right
+# after that binary compiled, passed the telemetry audit and had its .sha256sum
+# written - so it is on the release while the others are still compiling.
+# attach-finished.sh calls it for any finished binary whose upload a cancel or
+# a failure cut short. The release must already exist; the workflows create it
+# (empty) before the build.
 #
 # One failed asset must not throw away a run that took hours to compile, so an
 # attempt that fails is retried - and only with the files the release does NOT

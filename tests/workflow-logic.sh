@@ -62,16 +62,19 @@ for wf in "$ALL" "$MISSING"; do
     || fail "$(basename "$wf") still has the old seventeen-target timeout"
 done
 
-# The build writes to out/ and the workflows upload out/ - dist/ is the patch
+# The build writes to out/ and the binaries are attached from out/ - dist/ is the patch
 # sections here, and a workflow uploading dist/* would publish the patches and
 # none of the binaries.
 outdir="$(grep -E '^out=' "$ROOT/.github/scripts/build-tools.sh" | sed 's/.*:-\([a-z]*\)}.*/\1/')"
 [ "$outdir" = "out" ] && ok "build-tools.sh writes to out/" \
                       || fail "build-tools.sh's output directory is '$outdir', not out/"
+grep -q 'out="${OUT:-out}"' "$ROOT/.github/scripts/attach-finished.sh" \
+  && ok "attach-finished.sh attaches from out/" \
+  || fail "attach-finished.sh does not read out/ - dist/ here is the patch sections"
 for wf in "$ALL" "$MISSING"; do
   n="$(basename "$wf")"
-  grep -q 'assets=( out/\* )' "$wf" && ok "$n uploads out/" \
-                                    || fail "$n does not upload out/ - dist/ here is the patch sections"
+  ! grep -vE '^\s*#' "$wf" | grep -q 'dist/\*' && ok "$n never uploads dist/*" \
+    || fail "$n uploads dist/* - that is the patch sections, not the binaries"
 done
 
 # ── 2. Resolving the upstream source ref ─────────────────────────────────────
@@ -434,70 +437,175 @@ for wf in "$ALL" "$MISSING"; do
     || fail "$n has $tok GH_TOKEN step(s) but $rep GH_REPO - gh would guess the repository from the upstream clone"
 done
 
-# ── 7b. The job that builds the files attaches them, with retries ──────────
+# ── 7b. Each binary is on the release as soon as IT is finished ───────────
 #
-# A release file goes on the release the moment the job that built and checked
-# it is done - never after some later job that collects everything. Here each
-# workflow has ONE job, so its last step is the upload. That upload goes through
-# upload-release-assets.sh, which retries a failure with only what is still
-# missing, instead of a single `gh release create <assets>` / `gh release upload`
-# attempt that throws away hours of compiling on one failed asset.
+# Not after the whole 344-binary build: build-tools.sh attaches every binary
+# with its .sha256sum right after it compiled and passed the telemetry audit
+# (MONGO_TOOLS_PUBLISH), the release is created before the build so there is
+# something to attach to, and always() steps keep what a CANCELLED run finished.
 echo
-echo "The building job attaches its own files, with retries:"
-for wf in "$ALL" "$MISSING"; do
+echo "Each binary is attached the moment it is finished, and a cancel keeps them:"
+step_block() {   # <workflow> <step-name-fragment> -> that step's lines
+  awk -v want="$2" '/^      - (name|uses):/{inside=index($0,want)>0} inside' "$1"
+}
+step_if() {      # <workflow> <step-name-fragment> -> that step's if: value
+  step_block "$1" "$2" | sed -n 's/^        if: *//p' | head -1
+}
+step_line() {    # <workflow> <step-name-fragment> -> line number of the step
+  grep -n "^      - name: .*$2" "$1" | head -1 | cut -d: -f1
+}
+for pair in "$ALL|Create the release|Cross-compile" "$MISSING|Create the release|Build only what is missing"; do
+  wf="${pair%%|*}"; rest="${pair#*|}"; create="${rest%%|*}"; build="${rest#*|}"
   n="$(basename "$wf")"
-  jobs="$(awk '/^jobs:/{j=1;next} j && /^  [A-Za-z0-9_-]+:$/{c++} END{print c+0}' "$wf")"
-  [ "$jobs" = "1" ] && ok "$n builds and uploads in one job (no collect-at-the-end job)" \
-    || fail "$n has $jobs jobs - check each build job uploads its own files"
+  [ "$(awk '/^jobs:/{j=1;next} j && /^  [A-Za-z0-9_-]+:$/{c++} END{print c+0}' "$wf")" = 1 ] \
+    && ok "$n builds and attaches in one job" || fail "$n has more than one job"
   ! grep -qE 'actions/(upload|download)-artifact' "$wf" \
     && ok "$n does not hand binaries to a later job to publish" \
     || fail "$n passes binaries between jobs - the building job must attach them"
-  last="$(awk '/^      - (name|uses):/{s=$0} END{print s}' "$wf")"
-  awk '/^      - (name|uses):/{buf=""} {buf=buf $0 "\n"} END{printf "%s", buf}' "$wf" \
-    | grep -q 'upload-release-assets.sh "\$RELEASE_TAG" "\${assets\[@\]}"' \
-    && ok "$n: the last step ($last) uploads through upload-release-assets.sh" \
-    || fail "$n: the last step does not upload the built files through upload-release-assets.sh"
-  # NEGATIVE: no step may upload the binaries itself, bypassing the retries.
-  if grep -vE '^\s*#' "$wf" | grep -qE 'gh release (upload|create)[^#]*\$\{assets'; then
-    fail "$n uploads assets with a single gh call, bypassing the retries"
+  cl="$(step_line "$wf" "$create")"; bl="$(step_line "$wf" "$build")"
+  [ -n "$cl" ] && [ -n "$bl" ] && [ "$cl" -lt "$bl" ] \
+    && ok "$n creates the release BEFORE the build" \
+    || fail "$n does not create the release before building - nothing to attach each binary to"
+  step_block "$wf" "$create" | grep -q '^        id: release$' \
+    && ok "$n's release step has id: release" || fail "$n's release step has no id: release"
+  step_block "$wf" "$build" | grep -q '^        id: build$' \
+    && ok "$n's build step has id: build" || fail "$n's build step has no id: build"
+  step_block "$wf" "$build" | grep -q 'MONGO_TOOLS_PUBLISH: .*upload-release-assets.sh' \
+    && ok "$n's build attaches each binary as it is finished (MONGO_TOOLS_PUBLISH)" \
+    || fail "$n's build does not set MONGO_TOOLS_PUBLISH - binaries wait for the whole build"
+  # The catch-up and the final check run after a CANCEL, gated on the release
+  # existing. NEGATIVE: !cancelled() is exactly what skips them on cancel.
+  for step in "Attach any finished binary" "Check that every finished binary"; do
+    cond="$(step_if "$wf" "$step")"
+    case "$cond" in
+      *"always()"*"steps.release.outcome == 'success'"*)
+        ok "$n: '$step' runs after a cancel, once the release exists" ;;
+      *) fail "$n: '$step' has if: '$cond' - a cancelled run would lose finished binaries" ;;
+    esac
+  done
+  step_block "$wf" "Attach any finished binary" | grep -q 'attach-finished.sh "\$RELEASE_TAG"$' \
+    && ok "$n's catch-up attaches only the finished list (attach-finished.sh)" \
+    || fail "$n's catch-up does not use attach-finished.sh"
+  last="$(awk '/^      - name:/{s=$0} END{print s}' "$wf")"
+  step_block "$wf" "${last#*- name: }" | grep -q 'attach-finished.sh "\$RELEASE_TAG" --check' \
+    && ok "$n's last step reports any finished binary not on the release" \
+    || fail "$n's last step does not run attach-finished.sh --check"
+  ! grep -q 'cancelled()' "$wf" && ok "$n has no step that is skipped on cancel" \
+    || fail "$n still has a cancelled() condition"
+  # NEGATIVE: nothing may upload all of out/ after the whole build - that is
+  # the wait-for-everything shape this replaced - nor bypass the retries.
+  if grep -vE '^\s*#' "$wf" | grep -qE 'out/\*|\$\{assets'; then
+    fail "$n uploads all of out/ after the build instead of each binary as it finishes"
   else
-    ok "$n has no single-shot gh upload of the assets"
+    ok "$n has no step that uploads all of out/ after the build"
+  fi
+  if grep -vE '^\s*#' "$wf" | grep -qE 'gh release (upload|create) [^#]*(out/|\$\{)'; then
+    fail "$n uploads files with a single gh call, bypassing the retries"
+  else
+    ok "$n has no single-shot gh upload of binaries"
   fi
 done
 
-# A CANCELLED run must still attach what finished building. Without always()
-# GitHub skips every later step once the run is cancelled, so a cancel after
-# hours of compiling attached nothing. The upload is gated on the BUILD step's
-# own outcome, so a failed or cancelled build still publishes nothing unchecked.
-step_if() {   # <workflow> <step-name-fragment> -> that step's if: line, or empty
-  awk -v want="$2" '/^      - (name|uses):/{inside=index($0,want)>0; next}
-       inside && /^        if:/{sub(/^        if: */,""); print; exit}' "$1"
+# build-tools.sh itself: each binary must be attached BEFORE the next one is
+# built. A stubbed go and a stubbed publish command write one shared log.
+ORDER="$TMP/order"; mkdir -p "$ORDER/bin"
+cat > "$ORDER/bin/go" <<'STUB'
+#!/bin/sh
+out=""; while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift ;; esac; shift; done
+echo "build $(basename "$out")" >> "$ORDER_LOG"
+case "$out" in *mongostat-loong64*) exit 1 ;; esac
+printf 'stub binary\n' > "$out"
+STUB
+cat > "$ORDER/publish" <<'STUB'
+#!/bin/sh
+# Records what was attached, and checks the checksum exists AND verifies.
+tag="$1"; shift
+[ -f "$2" ] && ( cd "$(dirname "$2")" && sha256sum -c "$(basename "$2")" >/dev/null 2>&1 ) \
+  || { echo "publish-without-checksum $(basename "$1")" >> "$ORDER_LOG"; exit 1; }
+grep -qxF "$(basename "$1")" "$FINISHED_LIST" \
+  || { echo "publish-unfinished $(basename "$1")" >> "$ORDER_LOG"; exit 1; }
+echo "publish $tag $(basename "$1") $(basename "$2")" >> "$ORDER_LOG"
+case "$1" in *"${FAIL_PUBLISH:-none}"*) exit 1 ;; esac
+STUB
+chmod +x "$ORDER/bin/go" "$ORDER/publish"
+run_order() {   # [FAIL_PUBLISH asset] -> build in $ORDER/ws with publishing on
+  rm -rf "$ORDER/ws"; mkdir -p "$ORDER/ws"; prepare_build_fixture "$ORDER/ws"
+  : > "$ORDER/log"
+  ( cd "$ORDER/ws" && PATH="$ORDER/bin:$PATH" ORDER_LOG="$ORDER/log" TOOLS_VER=100.17.0 \
+      FINISHED_LIST="$ORDER/ws/.tools/finished.list" FAIL_PUBLISH="${1:-none}" \
+      MONGO_TOOLS_PUBLISH="$ORDER/publish" RELEASE_TAG=v-test \
+      bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/order.log" 2>&1
 }
-for pair in "$ALL|Create or update the release" "$ALL|Compose the release notes" \
-            "$MISSING|Upload the missing binaries"; do
-  wf="${pair%%|*}"; step="${pair#*|}"; n="$(basename "$wf")"
-  cond="$(step_if "$wf" "$step")"
-  case "$cond" in
-    *"always()"*"steps.build.outcome == 'success'"*)
-      ok "$n: '$step' runs after a cancel when the build succeeded" ;;
-    *) fail "$n: '$step' has if: '$cond' - a cancelled run would attach nothing" ;;
-  esac
-  # NEGATIVE: always() on its own would publish after a FAILED build, and
-  # !cancelled() is exactly what skips the step on cancel.
-  case "$cond" in
-    *"!cancelled()"*) fail "$n: '$step' uses !cancelled(), which skips it on cancel" ;;
-    *"always()"*) case "$cond" in *"steps.build.outcome == 'success'"*) \
-        ok "$n: '$step' does not publish after a failed or cancelled build" ;;
-      *) fail "$n: '$step' runs always() without requiring the build to succeed" ;; esac ;;
-  esac
+if run_order; then ok "a publishing build succeeds"; else
+  fail "a publishing build failed: $(tail -2 "$TMP/order.log" | tr '\n' ' ')"; fi
+head -3 "$ORDER/log" | tr '\n' '|' | grep -qx 'build bsondump-amd64|publish v-test bsondump-amd64 bsondump-amd64.sha256sum|build mongodump-amd64|' \
+  && ok "the first binary is attached, with its checksum, before the second is built" \
+  || fail "attach order is wrong: $(head -3 "$ORDER/log" | tr '\n' '|')"
+# Every publish directly follows its own build: never batched at the end.
+awk '/^build /{b=$2; next} /^publish /{if ($3 != b) bad=1; b=""} END{exit bad}' "$ORDER/log" \
+  && ok "every binary is attached right after its own build, never batched" \
+  || fail "a binary was attached later than right after its own build"
+[ "$(grep -c '^publish ' "$ORDER/log")" = 343 ] \
+  && ok "all 343 finished binaries were attached as they finished" \
+  || fail "expected 343 attaches, got $(grep -c '^publish ' "$ORDER/log")"
+! grep -q 'mongostat-loong64' <(grep '^publish' "$ORDER/log") \
+  && ok "the target that did not compile was never attached" \
+  || fail "a binary that did not compile was attached"
+! grep -qE '^publish-(without-checksum|unfinished)' "$ORDER/log" \
+  && ok "nothing was attached before its checksum and finished-list entry existed" \
+  || fail "a binary was attached before it was finished: $(grep -E '^publish-' "$ORDER/log" | head -1)"
+# NEGATIVE: a failed attach keeps building and fails at the END.
+if run_order mongodump-arm64; then
+  fail "a failed attach did not fail the build"
+else
+  grep -q '^build mongotop-android-arm64$' "$ORDER/log" \
+    && ok "a failed attach does not stop the build; it fails at the end" \
+    || fail "a failed attach stopped the build early"
+  grep -q 'not attached to v-test: mongodump-arm64' "$TMP/order.log" \
+    && ok "and says which binary was not attached" \
+    || fail "the build did not name the binary it could not attach"
+fi
+# Local use (no MONGO_TOOLS_PUBLISH) attaches nothing - already covered by the
+# builds in section 4, which run without it and must not call gh.
+
+# The catch-up: attach-finished.sh attaches only binaries in the finished list
+# that the release does not have - never an unlisted (unfinished) file in out/.
+GHC="$TMP/ghc"; mkdir -p "$GHC/bin" "$GHC/ws/out" "$GHC/ws/.tools"
+cat > "$GHC/bin/gh" <<'STUB'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "release upload") shift 3; for a in "$@"; do [ "$a" = --clobber ] || echo "$(basename "$a")" >> "$GHC_LOG"; done ;;
+  "release view") cat "$GHC_ASSETS" ;;
+  *) exit 2 ;;
+esac
+STUB
+chmod +x "$GHC/bin/gh"
+for f in mongodump-amd64 mongodump-arm64 mongodump-i386; do
+  printf 'bin %s\n' "$f" > "$GHC/ws/out/$f"; ( cd "$GHC/ws/out" && sha256sum "$f" > "$f.sha256sum" )
 done
-for wf in "$ALL" "$MISSING"; do
-  n="$(basename "$wf")"
-  grep -q '^        id: build$' "$wf" && ok "$n names its build step 'build'" \
-    || fail "$n has no step with id: build - steps.build.outcome is always empty"
-  ! grep -q 'cancelled()' "$wf" && ok "$n has no step that is skipped on cancel" \
-    || fail "$n still has a cancelled() condition"
-done
+printf 'half written\n' > "$GHC/ws/out/mongotop-amd64"   # cancelled mid-compile: unlisted
+printf 'mongodump-amd64\nmongodump-arm64\n' > "$GHC/ws/.tools/finished.list"
+size() { wc -c < "$GHC/ws/out/$1" | tr -d ' '; }
+printf 'mongodump-amd64\t%s\nmongodump-amd64.sha256sum\t%s\n' "$(size mongodump-amd64)" "$(size mongodump-amd64.sha256sum)" > "$GHC/assets"
+run_catchup() {
+  : > "$GHC/log"
+  ( cd "$GHC/ws" && PATH="$GHC/bin:$PATH" GHC_LOG="$GHC/log" GHC_ASSETS="$GHC/assets" \
+      UPLOAD_RETRY_DELAY=0 bash "$ROOT/.github/scripts/attach-finished.sh" v-test "$@" ) >"$TMP/catchup.log" 2>&1
+}
+if run_catchup --check; then
+  fail "--check passed although a finished binary is not on the release"
+else
+  grep -q 'mongodump-arm64' "$TMP/catchup.log" && ok "--check fails and names the finished binary that is missing" \
+    || fail "--check failed without naming the missing binary"
+fi
+run_catchup || fail "attach-finished.sh failed: $(tail -2 "$TMP/catchup.log" | tr '\n' ' ')"
+[ "$(sort "$GHC/log" | tr '\n' ' ')" = "mongodump-arm64 mongodump-arm64.sha256sum " ] \
+  && ok "the catch-up attaches only the finished binary the release lacks, with its checksum" \
+  || fail "the catch-up attached: $(tr '\n' ' ' < "$GHC/log")"
+# NEGATIVE: unfinished files in out/ are never attached.
+! grep -qE 'mongotop-amd64|mongodump-i386' "$GHC/log" \
+  && ok "a file in out/ that is not in the finished list is never attached" \
+  || fail "the catch-up attached a binary that never finished"
 
 # The script itself, against a stubbed gh: the first upload fails half way, the
 # retry must send ONLY what did not arrive, and must then succeed.

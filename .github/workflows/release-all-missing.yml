@@ -11,7 +11,8 @@ name: Release All Missing
 #
 # HOW: ask the release what it already has (.github/scripts/release-assets.sh),
 # hand that list to the SAME build script release-all.yml uses
-# (.github/scripts/build-tools.sh, via SKIP_LIST), and upload what comes out. The
+# (.github/scripts/build-tools.sh, via SKIP_LIST), which attaches each binary
+# the moment it is finished (MONGO_TOOLS_PUBLISH), as release-all.yml does. The
 # upstream clone and the patch apply are the SAME script too
 # (releases/apply-patches.sh). There is no second copy of the target list, the
 # ldflags or the apply loop here - that is the point of the split, because a
@@ -110,54 +111,66 @@ jobs:
           echo "$RELEASE_TAG already carries $n asset(s)."
           echo "### $RELEASE_TAG: $n asset(s) already published" >> "$GITHUB_STEP_SUMMARY"
 
-      # id: build - see release-all.yml: a cancelled run still attaches what
-      # this step finished building and checking.
-      - name: Build only what is missing
-        id: build
-        env:
-          SKIP_LIST: .tools/existing.txt
-        run: bash _patches/.github/scripts/build-tools.sh
-
-      - name: Upload the missing binaries, and say what was filled in
-        if: ${{ always() && steps.build.outcome == 'success' }}
+      # The release has to exist BEFORE the build: each binary is attached to it
+      # the moment it is finished, exactly as in release-all.yml.
+      - name: Create the release if it does not exist yet
+        id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # GH_REPO, because gh works out WHICH repository to talk to from the
-          # git remote of the working directory - and after apply-patches.sh the
-          # working directory is the UPSTREAM clone, whose origin is
-          # mongodb/mongo-tools. Without this, the first run's publish answered
-          #   HTTP 403: Resource not accessible by integration
-          #   (https://api.github.com/repos/mongodb/mongo-tools/releases)
-          # after building all 128 binaries: it was trying to create the release
-          # on MongoDB's repository, which this token has no business writing to.
-          GH_REPO: ${{ github.repository }}
+          GH_REPO: ${{ github.repository }}   # see "What the release already has"
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          assets=( out/* )
-
-          if [ "${#assets[@]}" -eq 0 ]; then
-            # The good outcome, and NOT a failure: the release is complete.
-            echo "::notice::$RELEASE_TAG is already complete - nothing to build."
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Nothing was missing. The release is complete." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          # Complete binary/checksum pairs are skipped during compilation.
-          # Replace incomplete pairs together so their checksums match. The
-          # release is created EMPTY if needed, then this job attaches what it
-          # built as its own last step, with retries (upload-release-assets.sh).
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" \
               --target "${{ github.sha }}" \
               --notes "MongoDB Database Tools built from upstream mongodb/mongo-tools $SOURCE_REF at $UPSTREAM_COMMIT, using reviewed Go toolchain and locked dependencies, plus the patches in wekan/mongo-tools-patches."
           fi
-          bash _patches/.github/scripts/upload-release-assets.sh "$RELEASE_TAG" "${assets[@]}"
 
+      # Complete binary/checksum pairs are skipped (SKIP_LIST); an incomplete
+      # pair is rebuilt and BOTH files are attached together, so the checksum
+      # matches. build-tools.sh attaches each binary the moment it is compiled,
+      # audited and checksummed (MONGO_TOOLS_PUBLISH), so a filled-in binary is
+      # on the release while the next one compiles.
+      - name: Build only what is missing, attaching each as it is done
+        id: build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}   # see "What the release already has"
+          SKIP_LIST: .tools/existing.txt
+          MONGO_TOOLS_PUBLISH: ${{ github.workspace }}/_patches/.github/scripts/upload-release-assets.sh
+        run: bash _patches/.github/scripts/build-tools.sh
+
+      # always(): after a CANCEL too, so a cancelled run keeps every binary it
+      # finished. attach-finished.sh attaches only binaries build-tools.sh listed
+      # as finished - never one whose audit or checksum did not complete.
+      - name: Attach any finished binary that is not on the release yet
+        if: ${{ always() && steps.release.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}   # see "What the release already has"
+        run: bash _patches/.github/scripts/attach-finished.sh "$RELEASE_TAG"
+
+      # Last: everything this run finished must be on the release; then say
+      # what was filled in.
+      - name: Check that every finished binary is on the release, and say what was filled in
+        if: ${{ always() && steps.release.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}   # see "What the release already has"
+        run: |
+          set -euo pipefail
+          bash _patches/.github/scripts/attach-finished.sh "$RELEASE_TAG" --check
+          n=0
+          [ -s .tools/finished.list ] && n="$(wc -l < .tools/finished.list | tr -d ' ')"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Added ${#assets[@]} file(s):" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$n" -eq 0 ]; then
+            # The good outcome, and NOT a failure: the release is complete.
+            echo "::notice::$RELEASE_TAG is already complete - nothing to build."
+            echo "Nothing was missing. The release is complete." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "Added $n binary/checksum pair(s):" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          printf '%s\n' "${assets[@]#out/}" >> "$GITHUB_STEP_SUMMARY"
+          cat .tools/finished.list >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "Added ${#assets[@]} file(s) to $RELEASE_TAG."
+          echo "Added $n binary/checksum pair(s) to $RELEASE_TAG."

@@ -23,6 +23,18 @@
 #                own name AND whose .sha256sum are both in that list is not
 #                rebuilt. Absent or empty => build everything.
 #   OUT          output directory (default: out)
+#   FINISHED_LIST  file that lists, one per line, every binary of THIS run that
+#                compiled, passed the telemetry audit and has its .sha256sum
+#                written (default: .tools/finished.list). Emptied at the start.
+#                Only a name in this list is ever attached to a release.
+#   MONGO_TOOLS_PUBLISH  command that attaches files to a release, called as
+#                `$MONGO_TOOLS_PUBLISH "$RELEASE_TAG" <binary> <binary>.sha256sum`
+#                right after each binary is finished, so it is on the release
+#                while the rest still compile (the workflows set it to
+#                upload-release-assets.sh). A failed attach does not stop the
+#                build; the script fails at the end instead. Unset (local use):
+#                nothing is uploaded.
+#   RELEASE_TAG  the release MONGO_TOOLS_PUBLISH attaches to (required with it)
 #
 # Because the tools are pure Go (CGO disabled), every architecture is buildable
 # here, including ones MongoDB ships no prebuilt tools for (riscv64, loong64). A
@@ -41,8 +53,14 @@ tools_ver="${TOOLS_VER:?TOOLS_VER is required}"
 tools_commit="${TOOLS_COMMIT:-${GITHUB_SHA:-unknown}}"
 skip_list="${SKIP_LIST:-}"
 tmp_root="${TMPDIR:-$PWD/.tools/tmp}"
+finished="${FINISHED_LIST:-.tools/finished.list}"
+publish="${MONGO_TOOLS_PUBLISH:-}"
+if [ -n "$publish" ]; then
+    release_tag="${RELEASE_TAG:?RELEASE_TAG is required with MONGO_TOOLS_PUBLISH}"
+fi
 
-mkdir -p "$out" "$tmp_root"
+mkdir -p "$out" "$tmp_root" "$(dirname "$finished")"
+: > "$finished"
 
 TOOLS="bsondump mongodump mongoexport mongofiles mongoimport mongorestore mongostat mongotop"
 # name  goos  goarch  goarm   ('-' = no GOARM). Same arch tokens + set as
@@ -113,6 +131,7 @@ LDFLAGS="-s -w -X main.VersionStr=$tools_ver -X main.GitCommit=$tools_commit"
 built=0
 skipped_existing=0
 skipped_broken=0
+upload_failed=""
 
 while read -r name goos goarch goarm; do
     [ -n "${name:-}" ] || continue
@@ -130,8 +149,26 @@ while read -r name goos goarch goarm; do
              -o "$out/$asset" "./${tool}/main" 2>"$tmp_root/${tool}-${name}.log"; then
             # A telemetry failure is fatal, never an unsupported-target skip.
             python3 "$audit_binary" --kind mongo-tools "$out/$asset" || exit 1
+            # A checksum beside every binary, in the "<sum>  <file>" format
+            # sha256sum -c reads, so a consumer can tell a truncated or tampered
+            # download from a good one. One file per binary, not one list for
+            # the release: a consumer fetching one of 344 binaries should not
+            # have to pull a list of all of them to check it. Written HERE,
+            # per binary, so the binary can be published the moment it is done.
+            ( cd "$out" && sha256sum "$asset" > "$asset.sha256sum" ) || exit 1
+            # Finished = compiled, audited, checksummed. Only now is it listed,
+            # so a cancel mid-compile or mid-audit can never get it attached.
+            echo "$asset" >> "$finished"
             echo "  built   $asset"
             built=$((built + 1))
+            if [ -n "$publish" ]; then
+                # </dev/null: this loop reads the target list from stdin, and an
+                # uploader that reads stdin would swallow the remaining targets.
+                if ! "$publish" "$release_tag" "$out/$asset" "$out/$asset.sha256sum" </dev/null; then
+                    echo "::error::could not attach $asset to $release_tag - building on, failing at the end"
+                    upload_failed="$upload_failed $asset"
+                fi
+            fi
         else
             echo "  skipped $asset (does not compile)"
             tail -2 "$tmp_root/${tool}-${name}.log" | sed 's/^/          /' || true
@@ -146,24 +183,14 @@ echo "=== built $built, already on the release $skipped_existing, does not compi
 echo "=== $out ==="
 ls -1 "$out" 2>/dev/null || true
 
-# A checksum beside every binary, in the "<sum>  <file>" format sha256sum -c
-# reads, so a consumer can tell a truncated or tampered download from a good
-# one. One file per binary, not one list for the release: this release carries
-# eight tools times a dozen platforms, and a consumer fetching one of them
-# should not have to pull a list of ninety-six to check it.
-(
-    cd "$out" || exit 0
-    for f in *; do
-        [ -e "$f" ] || continue
-        case "$f" in *.sha256sum) continue ;; esac
-        python3 "$audit_binary" --kind mongo-tools "$f" || exit 1
-        sha256sum "$f" > "${f}.sha256sum"
-    done
-) || exit 1
-
 # Nothing built AND nothing skipped-as-existing is a real failure: it means the
 # toolchain is broken rather than the release being complete.
 if [ "$built" -eq 0 ] && [ "$skipped_existing" -eq 0 ]; then
     echo "::error::no binaries were built and none were already on the release"
+    exit 1
+fi
+
+if [ -n "$upload_failed" ]; then
+    echo "::error::built and checked, but not attached to $release_tag:$upload_failed"
     exit 1
 fi
