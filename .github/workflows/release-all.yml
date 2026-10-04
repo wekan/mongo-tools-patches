@@ -100,11 +100,18 @@ jobs:
       - name: Restore reviewed dependencies, remove telemetry and audit source
         run: bash _patches/releases/update-dependencies.sh
 
+      # id: build, so the publish steps below can run even when the run is
+      # CANCELLED after this step finished: a cancel then still attaches every
+      # binary that was built and passed the build's own checks. A cancel
+      # DURING this step attaches nothing - the binary telemetry audit and the
+      # checksums run at the end of build-tools.sh, so a half-finished out/ is
+      # unchecked. Release All Missing builds what is left.
       - name: Cross-compile every tool for every platform
+        id: build
         run: bash _patches/.github/scripts/build-tools.sh
 
       - name: Compose the release notes
-        if: ${{ inputs.publish }}
+        if: ${{ always() && inputs.publish && steps.build.outcome == 'success' }}
         run: |
           set -euo pipefail
           git log --oneline --no-decorate -30 > upstream-notes.md
@@ -148,7 +155,7 @@ jobs:
           cat release-notes.md
 
       - name: Create or update the release, with a binary per tool per platform
-        if: ${{ inputs.publish }}
+        if: ${{ always() && inputs.publish && steps.build.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # GH_REPO, because gh works out WHICH repository to talk to from the
@@ -168,22 +175,29 @@ jobs:
             echo "::error::No binaries were built - nothing to publish."
             exit 1
           fi
-          # --clobber lets a re-run replace an asset of the same name in place
-          # rather than failing the upload on it. Assets this run did NOT build
-          # are LEFT ALONE: the release ACCUMULATES every platform of this
-          # version, which is the whole point of Release All Missing - one target
-          # that fails today must not cost the release the binaries the others
-          # already published.
+          # The release is created EMPTY when it does not exist yet, and every
+          # file is then attached by upload-release-assets.sh, which retries a
+          # failed upload with only what is still missing. `gh release create`
+          # with the files on it was one attempt: a single failed asset left a
+          # half-populated release and failed the run that had just built it.
           # --target pins a NEW tag to the commit that was built rather than to
           # whatever the default branch has moved to since.
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
             gh release edit   "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
           else
-            gh release create "$RELEASE_TAG" "${assets[@]}" \
+            gh release create "$RELEASE_TAG" \
               --title "$RELEASE_TAG" \
               --target "${{ github.sha }}" \
               --notes-file release-notes.md
           fi
+          # This is the job that built and checked these files, and this is its
+          # last step: they go on the release now, each binary with its
+          # .sha256sum, without waiting on anything else. --clobber (inside the
+          # script) replaces a re-run's copies in place. Assets this run did NOT
+          # build are LEFT ALONE: the release ACCUMULATES every platform of this
+          # version, which is the whole point of Release All Missing - one target
+          # that fails today must not cost the release the binaries the others
+          # already published.
+          bash _patches/.github/scripts/upload-release-assets.sh "$RELEASE_TAG" "${assets[@]}"
           echo "The release now carries these assets (accumulated across runs):"
           gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name'

@@ -110,12 +110,16 @@ jobs:
           echo "$RELEASE_TAG already carries $n asset(s)."
           echo "### $RELEASE_TAG: $n asset(s) already published" >> "$GITHUB_STEP_SUMMARY"
 
+      # id: build - see release-all.yml: a cancelled run still attaches what
+      # this step finished building and checking.
       - name: Build only what is missing
+        id: build
         env:
           SKIP_LIST: .tools/existing.txt
         run: bash _patches/.github/scripts/build-tools.sh
 
       - name: Upload the missing binaries, and say what was filled in
+        if: ${{ always() && steps.build.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # GH_REPO, because gh works out WHICH repository to talk to from the
@@ -141,14 +145,15 @@ jobs:
           fi
 
           # Complete binary/checksum pairs are skipped during compilation.
-          # Replace incomplete pairs together so their checksums match.
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
-          else
-            gh release create "$RELEASE_TAG" "${assets[@]}" --title "$RELEASE_TAG" \
+          # Replace incomplete pairs together so their checksums match. The
+          # release is created EMPTY if needed, then this job attaches what it
+          # built as its own last step, with retries (upload-release-assets.sh).
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" \
               --target "${{ github.sha }}" \
               --notes "MongoDB Database Tools built from upstream mongodb/mongo-tools $SOURCE_REF at $UPSTREAM_COMMIT, using reviewed Go toolchain and locked dependencies, plus the patches in wekan/mongo-tools-patches."
           fi
+          bash _patches/.github/scripts/upload-release-assets.sh "$RELEASE_TAG" "${assets[@]}"
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Added ${#assets[@]} file(s):" >> "$GITHUB_STEP_SUMMARY"

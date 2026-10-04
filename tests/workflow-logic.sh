@@ -40,7 +40,8 @@ echo "The scripts parse, and the workflows call scripts that exist:"
 
 for s in "$ROOT/releases/newest-release.sh" "$ROOT/releases/apply-patches.sh" \
          "$ROOT/releases/update-dependencies.sh" "$ROOT/releases/apply-vendor-patches.sh" \
-         "$ROOT/.github/scripts/build-tools.sh" "$ROOT/tests/patches-apply.sh" \
+         "$ROOT/.github/scripts/build-tools.sh" "$ROOT/.github/scripts/upload-release-assets.sh" \
+         "$ROOT/tests/patches-apply.sh" \
          "$ROOT/tests/no-telemetry-upstream.sh" "$ROOT/tests/sdk-telemetry.sh"; do
   bash -n "$s" 2>/dev/null && ok "bash -n $(basename "$s")" \
                            || fail "$(basename "$s") does not parse"
@@ -432,6 +433,138 @@ for wf in "$ALL" "$MISSING"; do
     && ok "$n: $tok step(s) with a token, $rep with GH_REPO" \
     || fail "$n has $tok GH_TOKEN step(s) but $rep GH_REPO - gh would guess the repository from the upstream clone"
 done
+
+# ── 7b. The job that builds the files attaches them, with retries ──────────
+#
+# A release file goes on the release the moment the job that built and checked
+# it is done - never after some later job that collects everything. Here each
+# workflow has ONE job, so its last step is the upload. That upload goes through
+# upload-release-assets.sh, which retries a failure with only what is still
+# missing, instead of a single `gh release create <assets>` / `gh release upload`
+# attempt that throws away hours of compiling on one failed asset.
+echo
+echo "The building job attaches its own files, with retries:"
+for wf in "$ALL" "$MISSING"; do
+  n="$(basename "$wf")"
+  jobs="$(awk '/^jobs:/{j=1;next} j && /^  [A-Za-z0-9_-]+:$/{c++} END{print c+0}' "$wf")"
+  [ "$jobs" = "1" ] && ok "$n builds and uploads in one job (no collect-at-the-end job)" \
+    || fail "$n has $jobs jobs - check each build job uploads its own files"
+  ! grep -qE 'actions/(upload|download)-artifact' "$wf" \
+    && ok "$n does not hand binaries to a later job to publish" \
+    || fail "$n passes binaries between jobs - the building job must attach them"
+  last="$(awk '/^      - (name|uses):/{s=$0} END{print s}' "$wf")"
+  awk '/^      - (name|uses):/{buf=""} {buf=buf $0 "\n"} END{printf "%s", buf}' "$wf" \
+    | grep -q 'upload-release-assets.sh "\$RELEASE_TAG" "\${assets\[@\]}"' \
+    && ok "$n: the last step ($last) uploads through upload-release-assets.sh" \
+    || fail "$n: the last step does not upload the built files through upload-release-assets.sh"
+  # NEGATIVE: no step may upload the binaries itself, bypassing the retries.
+  if grep -vE '^\s*#' "$wf" | grep -qE 'gh release (upload|create)[^#]*\$\{assets'; then
+    fail "$n uploads assets with a single gh call, bypassing the retries"
+  else
+    ok "$n has no single-shot gh upload of the assets"
+  fi
+done
+
+# A CANCELLED run must still attach what finished building. Without always()
+# GitHub skips every later step once the run is cancelled, so a cancel after
+# hours of compiling attached nothing. The upload is gated on the BUILD step's
+# own outcome, so a failed or cancelled build still publishes nothing unchecked.
+step_if() {   # <workflow> <step-name-fragment> -> that step's if: line, or empty
+  awk -v want="$2" '/^      - (name|uses):/{inside=index($0,want)>0; next}
+       inside && /^        if:/{sub(/^        if: */,""); print; exit}' "$1"
+}
+for pair in "$ALL|Create or update the release" "$ALL|Compose the release notes" \
+            "$MISSING|Upload the missing binaries"; do
+  wf="${pair%%|*}"; step="${pair#*|}"; n="$(basename "$wf")"
+  cond="$(step_if "$wf" "$step")"
+  case "$cond" in
+    *"always()"*"steps.build.outcome == 'success'"*)
+      ok "$n: '$step' runs after a cancel when the build succeeded" ;;
+    *) fail "$n: '$step' has if: '$cond' - a cancelled run would attach nothing" ;;
+  esac
+  # NEGATIVE: always() on its own would publish after a FAILED build, and
+  # !cancelled() is exactly what skips the step on cancel.
+  case "$cond" in
+    *"!cancelled()"*) fail "$n: '$step' uses !cancelled(), which skips it on cancel" ;;
+    *"always()"*) case "$cond" in *"steps.build.outcome == 'success'"*) \
+        ok "$n: '$step' does not publish after a failed or cancelled build" ;;
+      *) fail "$n: '$step' runs always() without requiring the build to succeed" ;; esac ;;
+  esac
+done
+for wf in "$ALL" "$MISSING"; do
+  n="$(basename "$wf")"
+  grep -q '^        id: build$' "$wf" && ok "$n names its build step 'build'" \
+    || fail "$n has no step with id: build - steps.build.outcome is always empty"
+  ! grep -q 'cancelled()' "$wf" && ok "$n has no step that is skipped on cancel" \
+    || fail "$n still has a cancelled() condition"
+done
+
+# The script itself, against a stubbed gh: the first upload fails half way, the
+# retry must send ONLY what did not arrive, and must then succeed.
+GHBIN="$TMP/ghbin"; mkdir -p "$GHBIN"
+cat > "$GHBIN/gh" <<'STUB'
+#!/usr/bin/env bash
+# Stand-in for gh. State in $GH_STATE: uploads.log (one line per upload call),
+# assets (name<TAB>size of what the release carries). GH_FAIL_UPLOADS = how many
+# upload calls fail; a failing call still "uploads" its first file.
+state="$GH_STATE"; touch "$state/assets" "$state/uploads.log"
+case "$1 $2" in
+  "release upload")
+    shift 3; files=(); for a in "$@"; do [ "$a" = --clobber ] || files+=("$a"); done
+    echo "${files[*]##*/}" >> "$state/uploads.log"
+    calls=$(wc -l < "$state/uploads.log" | tr -d ' ')
+    put() { awk -F'\t' -v n="$(basename "$1")" '$1 != n' "$state/assets" > "$state/a.tmp"
+            printf '%s\t%s\n' "$(basename "$1")" "$(wc -c < "$1" | tr -d ' ')" >> "$state/a.tmp"
+            mv "$state/a.tmp" "$state/assets"; }
+    if [ "$calls" -le "${GH_FAIL_UPLOADS:-0}" ]; then put "${files[0]}"; echo "stub: upload failed" >&2; exit 1; fi
+    for f in "${files[@]}"; do put "$f"; done ;;
+  "release view")
+    awk -F'\t' '{print $1"\t"$2}' "$state/assets" ;;
+  *) echo "stub gh: unexpected $*" >&2; exit 2 ;;
+esac
+STUB
+chmod +x "$GHBIN/gh"
+UP_DIR="$TMP/upload"; mkdir -p "$UP_DIR/out"
+for f in mongodump-amd64 mongodump-amd64.sha256sum mongodump-arm64 mongodump-arm64.sha256sum; do
+  printf 'bytes of %s\n' "$f" > "$UP_DIR/out/$f"
+done
+run_upload() {   # <fail-count> -> runs the script with a fresh stub state
+  rm -rf "$UP_DIR/state"; mkdir -p "$UP_DIR/state"
+  ( cd "$UP_DIR" && PATH="$GHBIN:$PATH" GH_STATE="$UP_DIR/state" GH_FAIL_UPLOADS="$1" \
+      UPLOAD_ATTEMPTS=3 UPLOAD_RETRY_DELAY=0 \
+      bash "$ROOT/.github/scripts/upload-release-assets.sh" v-test out/* ) >"$TMP/upload.log" 2>&1
+}
+if run_upload 1; then
+  ok "a failed upload is retried and then succeeds"
+else
+  fail "upload-release-assets.sh did not recover from one failed upload: $(tail -2 "$TMP/upload.log" | tr '\n' ' ')"
+fi
+[ "$(wc -l < "$UP_DIR/state/uploads.log" | tr -d ' ')" = 2 ] \
+  && ok "it took exactly two attempts" || fail "expected 2 upload calls, got $(wc -l < "$UP_DIR/state/uploads.log")"
+second="$(sed -n 2p "$UP_DIR/state/uploads.log")"
+case " $second " in
+  *" mongodump-amd64 "*) fail "the retry re-sent mongodump-amd64, which had already arrived" ;;
+  *) ok "the retry sends only what did not arrive ($second)" ;;
+esac
+[ "$(wc -l < "$UP_DIR/state/assets" | tr -d ' ')" = 4 ] \
+  && ok "every binary and its .sha256sum ends up on the release" \
+  || fail "the release carries $(wc -l < "$UP_DIR/state/assets") of 4 files"
+
+# NEGATIVE: an upload that never succeeds must FAIL the job, not pass quietly.
+if run_upload 99; then
+  fail "an upload that failed every attempt still succeeded"
+else
+  [ "$(wc -l < "$UP_DIR/state/uploads.log" | tr -d ' ')" = 3 ] \
+    && ok "an upload that keeps failing fails the job after UPLOAD_ATTEMPTS tries" \
+    || fail "it gave up after $(wc -l < "$UP_DIR/state/uploads.log") tries, not 3"
+fi
+# NEGATIVE: called with no files (an empty out/), it refuses rather than succeed.
+if ( PATH="$GHBIN:$PATH" GH_STATE="$UP_DIR/state" \
+     bash "$ROOT/.github/scripts/upload-release-assets.sh" v-test ) >/dev/null 2>&1; then
+  fail "upload-release-assets.sh with no files succeeded"
+else
+  ok "with no files to upload it fails instead of reporting success"
+fi
 
 # ── 8. Moving source and dependency inputs stay explicit ─────────────────────
 echo
