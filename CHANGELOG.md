@@ -65,21 +65,29 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
-<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/d49fd06fe23b9bf8a01254f04e29343e1a3b0d22">Attach release files from the job that built them, with retries and on cancel</a>. Thanks to xet7.</summary>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3ce5df8f48e6c8a22b513766cf17a4cbd3151624">Attach each release binary the moment it is built and checked, and keep them on cancel</a>. Thanks to xet7.</summary>
 
-Release All and Release All Missing each build in one job, which already
-attached its own binaries and their `.sha256sum` files as its last step. That
-upload was one `gh release create`/`gh release upload` attempt, so a single
-failed asset failed a run that had compiled for hours.
-`.github/scripts/upload-release-assets.sh` now retries, and each retry sends
-only the files the release does not yet carry at the right size. The release is
-created empty first. A cancelled run attached nothing, because every later step
-was skipped. The build step is now `id: build`, and the publish steps run on
-`always() && steps.build.outcome == 'success'`, so a cancel after the build
-still attaches every finished, checked binary. A failed build, or a cancel
-during it, still publishes nothing unchecked. `tests/workflow-logic.sh` checks
-the conditions and the upload step, and runs the retry script against a
-stubbed `gh`, with negative tests for each.
+Release All and Release All Missing built all eight tools for all 43 targets
+before attaching anything, so the first binary waited for the last, and a
+cancelled run attached nothing. Now each workflow creates the release, empty,
+before the build. `.github/scripts/build-tools.sh` writes each binary's
+`.sha256sum` right after it compiles and passes the telemetry audit. It then
+records the binary in `.tools/finished.list` and attaches the pair at once
+through `MONGO_TOOLS_PUBLISH`. A failed attach keeps the build going and fails
+it at the end. Local builds without that variable upload nothing, as before.
+
+Uploads go through `.github/scripts/upload-release-assets.sh`, added in
+[an earlier commit](https://github.com/wekan/mongo-tools-patches/commit/d49fd06fe23b9bf8a01254f04e29343e1a3b0d22).
+It retries with `--clobber` and sends only what has not arrived. An
+`always()` step runs `.github/scripts/attach-finished.sh`, so a cancelled or
+failed run still attaches every binary it finished. It never attaches a file
+in `out/` that is not in the finished list. The last step runs it with
+`--check` and names anything missing. `tests/workflow-logic.sh` checks:
+
+- each binary is attached before the next one is built;
+- the catch-up attaches only finished binaries;
+- no step uploads all of `out/` after the build;
+- no step is skipped on cancel.
 
 </details>
 
