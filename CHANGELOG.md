@@ -65,6 +65,25 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/d49fd06fe23b9bf8a01254f04e29343e1a3b0d22">Attach release files from the job that built them, with retries and on cancel</a>. Thanks to xet7.</summary>
+
+Release All and Release All Missing each build in one job, which already
+attached its own binaries and their `.sha256sum` files as its last step. That
+upload was one `gh release create`/`gh release upload` attempt, so a single
+failed asset failed a run that had compiled for hours.
+`.github/scripts/upload-release-assets.sh` now retries, and each retry sends
+only the files the release does not yet carry at the right size. The release is
+created empty first. A cancelled run attached nothing, because every later step
+was skipped. The build step is now `id: build`, and the publish steps run on
+`always() && steps.build.outcome == 'success'`, so a cancel after the build
+still attaches every finished, checked binary. A failed build, or a cancel
+during it, still publishes nothing unchecked. `tests/workflow-logic.sh` checks
+the conditions and the upload step, and runs the retry script against a
+stubbed `gh`, with negative tests for each.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3e0dbf968f15fe0703bd64f21bb93b621632e86b">Record what the shipped tools link in the telemetry audit</a>. Thanks to xet7.</summary>
 
 Validated against upstream master 385892da with Go 1.27.1: the patches apply,
