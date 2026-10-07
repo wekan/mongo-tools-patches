@@ -65,6 +65,21 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/c5657ae">Let upstream SBOM dependency links follow version bumps</a>. Thanks to xet7.</summary>
+
+Upstream commit `9fd1c5bda47e` bumped mongo-driver/v2 from 2.8.2 to 2.9.1.
+Its `cyclonedx.sbom.json` then named that version with a deps.dev
+license-evidence URL and a pkg.go.dev page. The upstream risk baseline knew
+only the exact URLs of earlier versions, so the release stopped with "new URL
+origin" for both. These links are SBOM metadata, not requests the tools make.
+`upstream-risk-baseline.json` now allows those two URL shapes in that file
+only. Other files, other hosts, other deps.dev endpoints and query strings
+still fail. `tests/riskAudit.test.py` pins both sides, and the audit of the
+failing upstream source passes.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/3ce5df8f48e6c8a22b513766cf17a4cbd3151624">Attach each release binary the moment it is built and checked, and keep them on cancel</a>. Thanks to xet7.</summary>
 
 Release All and Release All Missing built all eight tools for all 43 targets
