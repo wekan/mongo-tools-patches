@@ -7,6 +7,12 @@
   "denyHashes": [
     "4221c252d2f11ad658d60d2a0ab6147feb3d984e62e204a64c9ce8562e2410b0"
   ],
+  "allowUrlPatternsByFile": {
+    "cyclonedx.sbom.json": [
+      "https://api\\.deps\\.dev/v3/systems/go/packages/[A-Za-z0-9._~%-]+/versions/v[0-9][A-Za-z0-9.+-]*",
+      "https://pkg\\.go\\.dev/[A-Za-z0-9._~/-]+@(?:v[0-9][A-Za-z0-9.+-]*|go[0-9][0-9.]*)"
+    ]
+  },
   "files": {
     ".eslintrc.yml": {
       "sha256": "babbadab10cf16111efdcb16acfdbeacd37c95ca1e67639ca3ca921216165b14",

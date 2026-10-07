@@ -52,6 +52,33 @@ class RiskAudit(unittest.TestCase):
             self.file.write_text('fetch("'+url+'")')
             with self.assertRaisesRegex(ValueError, 'new URL'): r.inspect(self.root, self.policy)
 
+    def test_upstream_sbom_dependency_references_follow_version_bumps(self):
+        # Upstream cyclonedx.sbom.json names each Go dependency version with a
+        # deps.dev license-evidence URL and a pkg.go.dev page. They are metadata,
+        # not requests the tools make, and change with every dependency bump
+        # (mongo-driver/v2 2.8.2 -> 2.9.1 stopped a release).
+        upstream = json.loads((ROOT/'releases/upstream-risk-baseline.json').read_text())
+        self.policy['allowUrlPatternsByFile'] = upstream['allowUrlPatternsByFile']
+        sbom = self.root/'cyclonedx.sbom.json'
+        for url in ['https://api.deps.dev/v3/systems/go/packages/go.mongodb.org%2Fmongo-driver%2Fv2/versions/v2.9.1',
+                    'https://pkg.go.dev/go.mongodb.org/mongo-driver/v2@v2.9.1',
+                    'https://pkg.go.dev/None/std@go1.27.1']:
+            sbom.write_text(json.dumps({'url': url}))
+            r.inspect(self.root, self.policy)
+        # The same reference anywhere else is still a new URL.
+        sbom.unlink()
+        self.file.write_text('fetch("https://api.deps.dev/v3/systems/go/packages/x/versions/v1.0.0")')
+        with self.assertRaisesRegex(ValueError, 'main.js: new URL'): r.inspect(self.root, self.policy)
+        self.file.write_text('console.log("local diagnostics");')
+        # Other hosts, other deps.dev endpoints and query strings stay blocked in the SBOM.
+        for url in ['https://evil.example/v3/systems/go/packages/x/versions/v1.0.0',
+                    'https://api.deps.dev/v3/query?hash=abc',
+                    'https://api.deps.dev/v3/systems/go/packages/x/versions/v1.0.0?report=1',
+                    'https://pkg.go.dev/x@v1.0.0?report=1',
+                    'https://pkg.go.dev/search?q=telemetry']:
+            sbom.write_text(json.dumps({'url': url}))
+            with self.assertRaisesRegex(ValueError, 'cyclonedx.sbom.json: new URL'): r.inspect(self.root, self.policy)
+
     def test_known_bad_hash_always_blocks_source_or_binary(self):
         self.policy['denyHashes']=[hashlib.sha256(self.file.read_bytes()).hexdigest()]
         with self.assertRaisesRegex(ValueError,'hash'):r.inspect(self.root,self.policy)
