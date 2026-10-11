@@ -224,7 +224,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ -n "$out" ] || exit 1
-case "$out" in *mongostat-loong64*) echo "stub: does not compile" >&2; exit 1 ;; esac
+case "$out" in *mongo-tools-loong64*) echo "stub: does not compile" >&2; exit 1 ;; esac
 mkdir -p "$(dirname "$out")"
 printf 'stub binary\n' > "$out"
 STUB
@@ -235,9 +235,12 @@ chmod +x "$TMP/bin/go"
 AUDIT_REPO="$TMP/build-scripts"
 mkdir -p "$AUDIT_REPO/.github/scripts" "$AUDIT_REPO/releases"
 cp "$ROOT/.github/scripts/build-tools.sh" "$AUDIT_REPO/.github/scripts/"
-cp "$ROOT/releases/audit-telemetry.py" "$ROOT/releases/check-telemetry.py" "$ROOT/releases/risk-audit.py" "$AUDIT_REPO/releases/"
+cp "$ROOT/releases/audit-telemetry.py" "$ROOT/releases/check-telemetry.py" "$ROOT/releases/risk-audit.py" \
+  "$ROOT/releases/multicall.sh" "$AUDIT_REPO/releases/"
 prepare_build_fixture() {
-  mkdir -p "$1/vendor"
+  mkdir -p "$1/vendor" "$1/wekan_multicall"
+  # What releases/multicall.sh generates; build-tools.sh refuses to run without it.
+  printf 'package main\n' > "$1/wekan_multicall/main.go"
   printf 'module fixture\n' > "$1/go.mod"
   : > "$1/go.sum"
   : > "$1/vendor/modules.txt"
@@ -266,10 +269,11 @@ prepare_build_fixture "$BUILD"
 
 bins="$(find "$BUILD/out" -type f ! -name '*.sha256sum' 2>/dev/null | wc -l | tr -d ' ')"
 sums="$(find "$BUILD/out" -type f -name '*.sha256sum' 2>/dev/null | wc -l | tr -d ' ')"
-# 8 tools x 43 targets = 344, less the one target stubbed to fail. The expected
-# count moves with the canonical target registry rather than being loosened.
-[ "$bins" = "343" ] && ok "8 tools x 43 targets, less the one that does not compile ($bins)" \
-                    || fail "expected 343 binaries, got $bins"
+# One mongo-tools binary x 43 targets, less the one target stubbed to fail. The
+# expected count moves with the canonical target registry rather than being
+# loosened.
+[ "$bins" = "42" ] && ok "mongo-tools for 43 targets, less the one that does not compile ($bins)" \
+                   || fail "expected 42 binaries, got $bins"
 [ "$sums" = "$bins" ] && ok "a .sha256sum beside every binary ($sums)" \
                       || fail "$bins binaries but $sums checksums"
 targets="$(sed -n '/^TARGETS="/,/^"$/p' "$ROOT/.github/scripts/build-tools.sh" |
@@ -286,22 +290,48 @@ done
 grep -q 'tmp_root="${TMPDIR:-$PWD/.tools/tmp}"' "$ROOT/.github/scripts/build-tools.sh" \
   && ok "compiler diagnostics use configured .tools/tmp" \
   || fail "compiler diagnostics do not honor TMPDIR/.tools/tmp"
-[ -e "$BUILD/out/mongostat-loong64" ] \
+[ -e "$BUILD/out/mongo-tools-loong64" ] \
   && fail "the target that does not compile still produced a binary" \
   || ok "the target that does not compile produced nothing, and did not fail the run"
-grep -q 'skipped mongostat-loong64 (does not compile)' "$TMP/build.log" \
+grep -q 'skipped mongo-tools-loong64 (does not compile)' "$TMP/build.log" \
   && ok "it says which target did not compile" \
   || fail "the build did not report the skipped target"
-( cd "$BUILD/out" && sha256sum -c mongodump-amd64.sha256sum >/dev/null 2>&1 ) \
+( cd "$BUILD/out" && sha256sum -c mongo-tools-amd64.sha256sum >/dev/null 2>&1 ) \
   && ok "the checksums are in the format sha256sum -c reads" \
-  || fail "mongodump-amd64.sha256sum does not verify with sha256sum -c"
-grep -q '  mongodump-amd64$' "$BUILD/out/mongodump-amd64.sha256sum" \
+  || fail "mongo-tools-amd64.sha256sum does not verify with sha256sum -c"
+grep -q '  mongo-tools-amd64$' "$BUILD/out/mongo-tools-amd64.sha256sum" \
   && ok "and they record the bare file name" \
   || fail "the checksum file does not record the bare name"
 # Windows binaries carry .exe, and their checksum is named after the binary.
-[ -e "$BUILD/out/mongodump-win64.exe" ] && [ -e "$BUILD/out/mongodump-win64.exe.sha256sum" ] \
+[ -e "$BUILD/out/mongo-tools-win64.exe" ] && [ -e "$BUILD/out/mongo-tools-win64.exe.sha256sum" ] \
   && ok "Windows targets get .exe, with the checksum named after it" \
   || fail "the Windows binary or its checksum is missing/misnamed"
+
+# Only the one-binary mongo-tools is built: the eight per-tool binaries made
+# nine uploads per platform, which GitHub's API rate limit cut off part way.
+per_tool="$(find "$BUILD/out" -type f | sed 's#.*/##' \
+  | grep -E '^(bsondump|mongodump|mongoexport|mongofiles|mongoimport|mongorestore|mongostat|mongotop)-' || true)"
+[ -z "$per_tool" ] && ok "no per-tool binary is built (negative)" \
+  || fail "per-tool binaries were built: $(printf '%s' "$per_tool" | head -3 | tr '\n' ' ')"
+[ "$(find "$BUILD/out" -type f ! -name '*.sha256sum' ! -name 'mongo-tools-*' | wc -l | tr -d ' ')" = 0 ] \
+  && ok "every binary is a mongo-tools-<platform>" || fail "a binary that is not mongo-tools-<platform> was built"
+grep -q 'go build -trimpath -ldflags "$LDFLAGS"' "$ROOT/.github/scripts/build-tools.sh" \
+  && ! grep -qE '\./\$\{?tool\}?/main' "$ROOT/.github/scripts/build-tools.sh" \
+  && ok "build-tools.sh builds ./wekan_multicall and no ./<tool>/main" \
+  || fail "build-tools.sh still builds a per-tool package"
+# NEGATIVE: without the generated source it fails, rather than quietly
+# building nothing or falling back to the separate tools.
+NOMULTI="$TMP/nomulti"; mkdir -p "$NOMULTI"; prepare_build_fixture "$NOMULTI"
+rm -rf "$NOMULTI/wekan_multicall"
+if ( cd "$NOMULTI" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 \
+     bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/nomulti.log" 2>&1; then
+  fail "build-tools.sh succeeded without wekan_multicall/main.go"
+elif grep -q 'wekan_multicall/main.go is missing' "$TMP/nomulti.log" && [ -z "$(ls -A "$NOMULTI/out" 2>/dev/null)" ]; then
+  ok "without the generated mongo-tools source the build fails and builds nothing"
+else
+  fail "the build without wekan_multicall failed for another reason: $(tail -2 "$TMP/nomulti.log" | tr '\n' ' ')"
+fi
+prepare_build_fixture "$BUILD"
 
 # A compiled telemetry implementation is fatal, not a skipped architecture.
 cp "$TMP/bin/go" "$TMP/good-go"
@@ -353,22 +383,22 @@ echo "A binary counts as already published only with its checksum beside it:"
 SKIPDIR="$TMP/skip"
 mkdir -p "$SKIPDIR/.tools"
 cat > "$SKIPDIR/.tools/existing.txt" <<'LIST'
-mongodump-amd64
-mongodump-amd64.sha256sum
-mongodump-arm64
+mongo-tools-amd64
+mongo-tools-amd64.sha256sum
+mongo-tools-arm64
 LIST
 prepare_build_fixture "$SKIPDIR"
 ( cd "$SKIPDIR" && PATH="$TMP/bin:$PATH" TOOLS_VER=100.17.0 SKIP_LIST=.tools/existing.txt \
     bash "$AUDIT_REPO/.github/scripts/build-tools.sh" ) >"$TMP/skip.log" 2>&1 \
   || fail "build-tools.sh with a skip list failed: $(tail -2 "$TMP/skip.log" | tr '\n' ' ')"
 
-grep -q '  have    mongodump-amd64$' "$TMP/skip.log" \
+grep -q '  have    mongo-tools-amd64$' "$TMP/skip.log" \
   && ok "a fully published binary is not rebuilt" \
-  || fail "mongodump-amd64 was rebuilt although it and its checksum are on the release"
-grep -q '  built   mongodump-arm64$' "$TMP/skip.log" \
+  || fail "mongo-tools-amd64 was rebuilt although it and its checksum are on the release"
+grep -q '  built   mongo-tools-arm64$' "$TMP/skip.log" \
   && ok "a binary whose checksum is missing IS rebuilt" \
-  || fail "mongodump-arm64 was treated as present although its .sha256sum is not on the release"
-[ ! -e "$SKIPDIR/out/mongodump-amd64" ] \
+  || fail "mongo-tools-arm64 was treated as present although its .sha256sum is not on the release"
+[ ! -e "$SKIPDIR/out/mongo-tools-amd64" ] \
   && ok "and the skipped one is not written again" \
   || fail "the skipped binary was written anyway"
 
@@ -513,7 +543,7 @@ cat > "$ORDER/bin/go" <<'STUB'
 #!/bin/sh
 out=""; while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift ;; esac; shift; done
 echo "build $(basename "$out")" >> "$ORDER_LOG"
-case "$out" in *mongostat-loong64*) exit 1 ;; esac
+case "$out" in *mongo-tools-loong64*) exit 1 ;; esac
 printf 'stub binary\n' > "$out"
 STUB
 cat > "$ORDER/publish" <<'STUB'
@@ -538,30 +568,30 @@ run_order() {   # [FAIL_PUBLISH asset] -> build in $ORDER/ws with publishing on
 }
 if run_order; then ok "a publishing build succeeds"; else
   fail "a publishing build failed: $(tail -2 "$TMP/order.log" | tr '\n' ' ')"; fi
-head -3 "$ORDER/log" | tr '\n' '|' | grep -qx 'build bsondump-amd64|publish v-test bsondump-amd64 bsondump-amd64.sha256sum|build mongodump-amd64|' \
+head -3 "$ORDER/log" | tr '\n' '|' | grep -qx 'build mongo-tools-amd64|publish v-test mongo-tools-amd64 mongo-tools-amd64.sha256sum|build mongo-tools-arm64|' \
   && ok "the first binary is attached, with its checksum, before the second is built" \
   || fail "attach order is wrong: $(head -3 "$ORDER/log" | tr '\n' '|')"
 # Every publish directly follows its own build: never batched at the end.
 awk '/^build /{b=$2; next} /^publish /{if ($3 != b) bad=1; b=""} END{exit bad}' "$ORDER/log" \
   && ok "every binary is attached right after its own build, never batched" \
   || fail "a binary was attached later than right after its own build"
-[ "$(grep -c '^publish ' "$ORDER/log")" = 343 ] \
-  && ok "all 343 finished binaries were attached as they finished" \
-  || fail "expected 343 attaches, got $(grep -c '^publish ' "$ORDER/log")"
-! grep -q 'mongostat-loong64' <(grep '^publish' "$ORDER/log") \
+[ "$(grep -c '^publish ' "$ORDER/log")" = 42 ] \
+  && ok "all 42 finished binaries were attached as they finished" \
+  || fail "expected 42 attaches, got $(grep -c '^publish ' "$ORDER/log")"
+! grep -q 'mongo-tools-loong64' <(grep '^publish' "$ORDER/log") \
   && ok "the target that did not compile was never attached" \
   || fail "a binary that did not compile was attached"
 ! grep -qE '^publish-(without-checksum|unfinished)' "$ORDER/log" \
   && ok "nothing was attached before its checksum and finished-list entry existed" \
   || fail "a binary was attached before it was finished: $(grep -E '^publish-' "$ORDER/log" | head -1)"
 # NEGATIVE: a failed attach keeps building and fails at the END.
-if run_order mongodump-arm64; then
+if run_order mongo-tools-arm64; then
   fail "a failed attach did not fail the build"
 else
-  grep -q '^build mongotop-android-arm64$' "$ORDER/log" \
+  grep -q '^build mongo-tools-android-arm64$' "$ORDER/log" \
     && ok "a failed attach does not stop the build; it fails at the end" \
     || fail "a failed attach stopped the build early"
-  grep -q 'not attached to v-test: mongodump-arm64' "$TMP/order.log" \
+  grep -q 'not attached to v-test: mongo-tools-arm64' "$TMP/order.log" \
     && ok "and says which binary was not attached" \
     || fail "the build did not name the binary it could not attach"
 fi
@@ -580,13 +610,13 @@ case "$1 $2" in
 esac
 STUB
 chmod +x "$GHC/bin/gh"
-for f in mongodump-amd64 mongodump-arm64 mongodump-i386; do
+for f in mongo-tools-amd64 mongo-tools-arm64 mongo-tools-i386; do
   printf 'bin %s\n' "$f" > "$GHC/ws/out/$f"; ( cd "$GHC/ws/out" && sha256sum "$f" > "$f.sha256sum" )
 done
-printf 'half written\n' > "$GHC/ws/out/mongotop-amd64"   # cancelled mid-compile: unlisted
-printf 'mongodump-amd64\nmongodump-arm64\n' > "$GHC/ws/.tools/finished.list"
+printf 'half written\n' > "$GHC/ws/out/mongo-tools-riscv64"   # cancelled mid-compile: unlisted
+printf 'mongo-tools-amd64\nmongo-tools-arm64\n' > "$GHC/ws/.tools/finished.list"
 size() { wc -c < "$GHC/ws/out/$1" | tr -d ' '; }
-printf 'mongodump-amd64\t%s\nmongodump-amd64.sha256sum\t%s\n' "$(size mongodump-amd64)" "$(size mongodump-amd64.sha256sum)" > "$GHC/assets"
+printf 'mongo-tools-amd64\t%s\nmongo-tools-amd64.sha256sum\t%s\n' "$(size mongo-tools-amd64)" "$(size mongo-tools-amd64.sha256sum)" > "$GHC/assets"
 run_catchup() {
   : > "$GHC/log"
   ( cd "$GHC/ws" && PATH="$GHC/bin:$PATH" GHC_LOG="$GHC/log" GHC_ASSETS="$GHC/assets" \
@@ -595,15 +625,15 @@ run_catchup() {
 if run_catchup --check; then
   fail "--check passed although a finished binary is not on the release"
 else
-  grep -q 'mongodump-arm64' "$TMP/catchup.log" && ok "--check fails and names the finished binary that is missing" \
+  grep -q 'mongo-tools-arm64' "$TMP/catchup.log" && ok "--check fails and names the finished binary that is missing" \
     || fail "--check failed without naming the missing binary"
 fi
 run_catchup || fail "attach-finished.sh failed: $(tail -2 "$TMP/catchup.log" | tr '\n' ' ')"
-[ "$(sort "$GHC/log" | tr '\n' ' ')" = "mongodump-arm64 mongodump-arm64.sha256sum " ] \
+[ "$(sort "$GHC/log" | tr '\n' ' ')" = "mongo-tools-arm64 mongo-tools-arm64.sha256sum " ] \
   && ok "the catch-up attaches only the finished binary the release lacks, with its checksum" \
   || fail "the catch-up attached: $(tr '\n' ' ' < "$GHC/log")"
 # NEGATIVE: unfinished files in out/ are never attached.
-! grep -qE 'mongotop-amd64|mongodump-i386' "$GHC/log" \
+! grep -qE 'mongo-tools-riscv64|mongo-tools-i386' "$GHC/log" \
   && ok "a file in out/ that is not in the finished list is never attached" \
   || fail "the catch-up attached a binary that never finished"
 
@@ -633,7 +663,7 @@ esac
 STUB
 chmod +x "$GHBIN/gh"
 UP_DIR="$TMP/upload"; mkdir -p "$UP_DIR/out"
-for f in mongodump-amd64 mongodump-amd64.sha256sum mongodump-arm64 mongodump-arm64.sha256sum; do
+for f in mongo-tools-amd64 mongo-tools-amd64.sha256sum mongo-tools-arm64 mongo-tools-arm64.sha256sum; do
   printf 'bytes of %s\n' "$f" > "$UP_DIR/out/$f"
 done
 run_upload() {   # <fail-count> -> runs the script with a fresh stub state
@@ -651,7 +681,7 @@ fi
   && ok "it took exactly two attempts" || fail "expected 2 upload calls, got $(wc -l < "$UP_DIR/state/uploads.log")"
 second="$(sed -n 2p "$UP_DIR/state/uploads.log")"
 case " $second " in
-  *" mongodump-amd64 "*) fail "the retry re-sent mongodump-amd64, which had already arrived" ;;
+  *" mongo-tools-amd64 "*) fail "the retry re-sent mongo-tools-amd64, which had already arrived" ;;
   *) ok "the retry sends only what did not arrive ($second)" ;;
 esac
 [ "$(wc -l < "$UP_DIR/state/assets" | tr -d ' ')" = 4 ] \

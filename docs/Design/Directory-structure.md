@@ -82,8 +82,8 @@ tags such as `master-575cf6b`, so snapshots never mix. See
   and changed none of it.
 - **No version directories.** The exact upstream commit is resolved at build time.
 - **No built binaries in git.** They live on the GitHub Releases of this repo, one
-  set per version, named `<tool>-<arch>` / `<tool>-<arch>.exe` with a
-  `<tool>-<arch>.sha256sum` each.
+  set per version, named `mongo-tools-<arch>` / `mongo-tools-<arch>.exe` with a
+  `mongo-tools-<arch>.sha256sum` each - all eight tools in one program.
 - **No Go module of its own.** The SDK regression tests compile against the prepared source; `go.mod` comes from the
   upstream clone and is upgraded and re-vendored during the build.
 

@@ -1,21 +1,21 @@
 # mongo-tools-patches
 
 Patches to the upstream [MongoDB Database Tools](https://github.com/mongodb/mongo-tools)
-development branch, and the build that makes the `<tool>-<arch>` binaries WeKan ships
-in every
-bundle, Docker image and snap.
+development branch, and the build that makes the `mongo-tools-<arch>` binaries WeKan
+ships in every bundle, Docker image and snap.
 
 This repository carries **no mongo-tools source**. Each build clones current upstream
 `master`, including unreleased fixes, verifies and applies the patches in
 [`dist/`](dist/README.md), cross-compiles the eight tools (`bsondump`, `mongodump`,
 `mongoexport`, `mongofiles`, `mongoimport`, `mongorestore`, `mongostat`, `mongotop`)
-for every platform with CGO disabled, upgrades all dependencies with the newest stable
-Go, and publishes one binary per tool per platform with a `.sha256sum` beside each.
-It also publishes `mongo-tools-<arch>`: all eight tools as ONE program
-([`releases/multicall.sh`](releases/multicall.sh)), about 15 MB where the eight
-separate binaries are about 105 MB, because they share one Go runtime, driver and
+as ONE program per platform ([`releases/multicall.sh`](releases/multicall.sh)) with
+CGO disabled, upgrades all dependencies with the newest stable Go, and publishes that
+`mongo-tools-<arch>` with a `.sha256sum` beside it. It is about 15 MB where the eight
+separate binaries were about 105 MB, because they share one Go runtime, driver and
 common code. It runs as the tool it is named after - a link named `mongodump` is
-mongodump - or as `mongo-tools mongodump ...`. It
+mongodump - or as `mongo-tools mongodump ...`. The eight separate binaries are no
+longer published: nine binaries per platform meant 774 uploads a release, which ran
+into GitHub's API rate limit. It
 replaces the `wekan/mongo-tools` source fork,
 which carried no source change of its own — only this build. Same model as
 [wekan/node-patches](https://github.com/wekan/node-patches).

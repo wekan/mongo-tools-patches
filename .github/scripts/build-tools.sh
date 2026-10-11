@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# build-tools.sh - cross-compile every MongoDB Database Tool for every platform
+# build-tools.sh - cross-compile mongo-tools-<platform>, all eight MongoDB
+# Database Tools as ONE program (releases/multicall.sh), for every platform
 # into out/, with a .sha256sum beside each binary.
 #
 # ONE copy of the build, used by both release-all.yml (build everything) and
@@ -62,9 +63,8 @@ fi
 mkdir -p "$out" "$tmp_root" "$(dirname "$finished")"
 : > "$finished"
 
-TOOLS="bsondump mongodump mongoexport mongofiles mongoimport mongorestore mongostat mongotop"
 # name  goos  goarch  goarm   ('-' = no GOARM). Same arch tokens + set as
-# wekan/FerretDB's build.sh so ferretdb-<arch> and mongodump-<arch> match.
+# wekan/FerretDB's build.sh so ferretdb-<arch> and mongo-tools-<arch> match.
 #
 # armv6 is GOARM=6, hard-float VFPv2 - Raspberry Pi 1 and Zero. armel below is
 # GOARM=5 and WOULD run on those boards, in software floating point, so it is
@@ -124,21 +124,21 @@ already_there() {
     grep -qxF "$1" "$skip_list" && grep -qxF "$1.sha256sum" "$skip_list"
 }
 
+# mongo-tools-<platform> is the ONLY binary built and released: all eight tools
+# as one program (releases/multicall.sh), ~15 MB where the eight separate
+# binaries were ~105 MB, because they share one Go runtime, driver and common
+# code. It is run as the tool it is named after (a link or copy named
+# mongodump), or as `mongo-tools <tool> ...`. The eight per-tool binaries are no
+# longer built: every consumer downloads mongo-tools-<platform>, and publishing
+# nine binaries per platform meant 774 uploads a run, which GitHub refused part
+# way through with "HTTP 403: API rate limit exceeded for installation".
+# Without the generated source there is nothing to build, so that is an error
+# rather than a quiet fall back to the separate tools.
+[ -f wekan_multicall/main.go ] \
+    || { echo "::error::wekan_multicall/main.go is missing: run releases/multicall.sh first"; exit 1; }
 # No ssl/sasl tags and no -buildmode=pie: keep the build CGO-free so it
 # cross-compiles to every GOARCH (those pull in C libs / a cross toolchain).
-LDFLAGS="-s -w -X main.VersionStr=$tools_ver -X main.GitCommit=$tools_commit"
-
-# mongo-tools-<platform>: all eight tools as ONE program (releases/multicall.sh),
-# ~15 MB where the eight separate binaries are ~105 MB, because they share one
-# Go runtime, driver and common code. It is run as the tool it is named after,
-# or as `mongo-tools <tool> ...`. Built when the workflow has generated its
-# source (wekan_multicall/), beside the per-tool binaries, which stay for every
-# consumer that still downloads them.
-BUILD_UNITS="$TOOLS"
-if [ -f wekan_multicall/main.go ]; then
-    BUILD_UNITS="$TOOLS mongo-tools"
-    MULTI_LDFLAGS="$(bash "$(dirname "$0")/../../releases/multicall.sh" --ldflags "$tools_ver" "$tools_commit")" || exit 1
-fi
+LDFLAGS="$(bash "$(dirname "$0")/../../releases/multicall.sh" --ldflags "$tools_ver" "$tools_commit")" || exit 1
 
 built=0
 skipped_existing=0
@@ -149,46 +149,42 @@ while read -r name goos goarch goarm; do
     [ -n "${name:-}" ] || continue
     arm=""; [ "$goarm" != "-" ] && arm="$goarm"
     ext=""; [ "$goos" = windows ] && ext=".exe"
-    for tool in $BUILD_UNITS; do
-        asset="${tool}-${name}${ext}"
-        pkg="./${tool}/main"; flags="$LDFLAGS"
-        if [ "$tool" = mongo-tools ]; then pkg="./wekan_multicall"; flags="$MULTI_LDFLAGS"; fi
-        if already_there "$asset"; then
-            echo "  have    $asset"
-            skipped_existing=$((skipped_existing + 1))
-            continue
-        fi
-        if CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOARM="$arm" \
-             go build -trimpath -ldflags "$flags" \
-             -o "$out/$asset" "$pkg" 2>"$tmp_root/${tool}-${name}.log"; then
-            # A telemetry failure is fatal, never an unsupported-target skip.
-            python3 "$audit_binary" --kind mongo-tools "$out/$asset" || exit 1
-            # A checksum beside every binary, in the "<sum>  <file>" format
-            # sha256sum -c reads, so a consumer can tell a truncated or tampered
-            # download from a good one. One file per binary, not one list for
-            # the release: a consumer fetching one of 344 binaries should not
-            # have to pull a list of all of them to check it. Written HERE,
-            # per binary, so the binary can be published the moment it is done.
-            ( cd "$out" && sha256sum "$asset" > "$asset.sha256sum" ) || exit 1
-            # Finished = compiled, audited, checksummed. Only now is it listed,
-            # so a cancel mid-compile or mid-audit can never get it attached.
-            echo "$asset" >> "$finished"
-            echo "  built   $asset"
-            built=$((built + 1))
-            if [ -n "$publish" ]; then
-                # </dev/null: this loop reads the target list from stdin, and an
-                # uploader that reads stdin would swallow the remaining targets.
-                if ! "$publish" "$release_tag" "$out/$asset" "$out/$asset.sha256sum" </dev/null; then
-                    echo "::error::could not attach $asset to $release_tag - building on, failing at the end"
-                    upload_failed="$upload_failed $asset"
-                fi
+    asset="mongo-tools-${name}${ext}"
+    if already_there "$asset"; then
+        echo "  have    $asset"
+        skipped_existing=$((skipped_existing + 1))
+        continue
+    fi
+    if CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOARM="$arm" \
+         go build -trimpath -ldflags "$LDFLAGS" \
+         -o "$out/$asset" ./wekan_multicall 2>"$tmp_root/${asset}.log"; then
+        # A telemetry failure is fatal, never an unsupported-target skip.
+        python3 "$audit_binary" --kind mongo-tools "$out/$asset" || exit 1
+        # A checksum beside every binary, in the "<sum>  <file>" format
+        # sha256sum -c reads, so a consumer can tell a truncated or tampered
+        # download from a good one. One file per binary, not one list for
+        # the release: a consumer fetching one of 43 binaries should not
+        # have to pull a list of all of them to check it. Written HERE,
+        # per binary, so the binary can be published the moment it is done.
+        ( cd "$out" && sha256sum "$asset" > "$asset.sha256sum" ) || exit 1
+        # Finished = compiled, audited, checksummed. Only now is it listed,
+        # so a cancel mid-compile or mid-audit can never get it attached.
+        echo "$asset" >> "$finished"
+        echo "  built   $asset"
+        built=$((built + 1))
+        if [ -n "$publish" ]; then
+            # </dev/null: this loop reads the target list from stdin, and an
+            # uploader that reads stdin would swallow the remaining targets.
+            if ! "$publish" "$release_tag" "$out/$asset" "$out/$asset.sha256sum" </dev/null; then
+                echo "::error::could not attach $asset to $release_tag - building on, failing at the end"
+                upload_failed="$upload_failed $asset"
             fi
-        else
-            echo "  skipped $asset (does not compile)"
-            tail -2 "$tmp_root/${tool}-${name}.log" | sed 's/^/          /' || true
-            skipped_broken=$((skipped_broken + 1))
         fi
-    done
+    else
+        echo "  skipped $asset (does not compile)"
+        tail -2 "$tmp_root/${asset}.log" | sed 's/^/          /' || true
+        skipped_broken=$((skipped_broken + 1))
+    fi
 done <<EOF
 $TARGETS
 EOF

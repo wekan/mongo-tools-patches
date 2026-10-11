@@ -47,6 +47,7 @@ it so it can be re-ported.
 
 ## What WeKan consumes
 
-WeKan downloads `<tool>-<arch>` and `<tool>-<arch>.sha256sum` from the newest release
-and embeds the tools in its bundles, Docker image and snap. The `<arch>` tokens match
+WeKan downloads `mongo-tools-<arch>` and `mongo-tools-<arch>.sha256sum` from the
+newest release and embeds it in its bundles, Docker image and snap, with a link or
+`.cmd` shim named after each tool. The `<arch>` tokens match
 the FerretDB binary names.

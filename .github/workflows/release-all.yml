@@ -2,10 +2,12 @@ name: Release All
 
 # Build the MongoDB Database Tools (bsondump, mongodump, mongoexport, mongofiles,
 # mongoimport, mongorestore, mongostat, mongotop) for EVERY platform WeKan ships
-# a bundle for, and attach one <tool>-<arch>[.exe] binary per platform to the
-# GitHub Release of that version - the same shape wekan/FerretDB's and
-# wekan/node-patches' release-all.yml have: individual per-arch assets, no zip,
-# so a consumer downloads only the file for the platform it targets.
+# a bundle for, as ONE program per platform, and attach that
+# mongo-tools-<arch>[.exe] to the GitHub Release of that version - the same
+# shape wekan/FerretDB's and wekan/node-patches' release-all.yml have:
+# individual per-arch assets, no zip, so a consumer downloads only the file for
+# the platform it targets. The eight separate per-tool binaries are no longer
+# built or released (see build-tools.sh).
 #
 # This repo carries only PATCHES. Each run clones upstream mongodb/mongo-tools
 # master, including changes not yet in a release, applies
@@ -19,7 +21,7 @@ name: Release All
 # a `GOOS=... GOARCH=... go build` on the ordinary x86_64 runner - no container,
 # no cross toolchain, no emulation, and minutes rather than the hours a V8 build
 # takes. That is also why there is no per-platform patch section here: a single
-# checkout produces all forty-two targets, so a patch that concerns one GOOS or
+# checkout produces all forty-three targets, so a patch that concerns one GOOS or
 # GOARCH carries a Go build constraint instead of living in its own directory
 # (dist/README.md).
 #
@@ -31,7 +33,7 @@ name: Release All
 # EACH BINARY IS ON THE RELEASE AS SOON AS IT IS FINISHED. The release is
 # created (empty) before the build, and build-tools.sh attaches every binary
 # with its .sha256sum the moment it has compiled and passed the telemetry audit
-# (MONGO_TOOLS_PUBLISH) - so mongodump-amd64 is downloadable while the other 343
+# (MONGO_TOOLS_PUBLISH) - so mongo-tools-amd64 is downloadable while the other 42
 # are still compiling, and a CANCELLED run keeps everything it finished: an
 # always() step attaches any finished binary whose upload was cut short
 # (attach-finished.sh), and the last step checks none is missing.
@@ -108,8 +110,8 @@ jobs:
       - name: Restore reviewed dependencies, remove telemetry and audit source
         run: bash _patches/releases/update-dependencies.sh
 
-      # All eight tools as one program, mongo-tools-<platform>: build-tools.sh
-      # builds it beside the per-tool binaries once its source exists.
+      # All eight tools as one program, mongo-tools-<platform>: the only binary
+      # build-tools.sh builds, and it refuses to run without this source.
       - name: Generate the one-binary mongo-tools
         run: bash _patches/releases/multicall.sh
 
@@ -168,14 +170,12 @@ jobs:
           # not out/, because after a cancel out/ can hold a binary whose
           # compile or audit never completed. Checksums are not listed there.
           plats="$( (cat .tools/finished.list 2>/dev/null || true) \
-            | sed -n 's#^mongodump-##p' | sed 's#\.exe$##' | sort -u | tr '\n' ' ')"
+            | sed -n 's#^mongo-tools-##p' | sed 's#\.exe$##' | sort -u | tr '\n' ' ')"
 
           {
             echo "MongoDB Database Tools 🍃"
             echo ""
-            echo "One \`<tool>-<arch>[.exe]\` binary per platform - bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop - for use with WeKan and FerretDB v1."
-            echo ""
-            echo "And \`mongo-tools-<arch>[.exe]\`: all eight in ONE binary (~15 MB instead of ~105 MB). Run it as the tool it is named after (a link or copy named \`mongodump\`), or as \`mongo-tools mongodump ...\`."
+            echo "One \`mongo-tools-<arch>[.exe]\` binary per platform, for use with WeKan and FerretDB v1: all eight tools - bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop - in ONE program (~15 MB instead of ~105 MB). Run it as the tool it is named after (a link or copy named \`mongodump\`), or as \`mongo-tools mongodump ...\`."
             echo ""
             echo "Platforms: ${plats% }"
             echo ""
@@ -184,9 +184,9 @@ jobs:
             echo "Every binary has a \`<name>.sha256sum\` beside it. To check a download:"
             echo ""
             echo '```'
-            echo "curl -fsSLO https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/mongodump-amd64"
-            echo "curl -fsSLO https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/mongodump-amd64.sha256sum"
-            echo "sha256sum -c mongodump-amd64.sha256sum"
+            echo "curl -fsSLO https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/mongo-tools-amd64"
+            echo "curl -fsSLO https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/mongo-tools-amd64.sha256sum"
+            echo "sha256sum -c mongo-tools-amd64.sha256sum"
             echo '```'
             echo ""
             echo "Source provenance:"
