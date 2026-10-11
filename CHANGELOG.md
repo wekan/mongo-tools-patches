@@ -65,6 +65,18 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/920b40e">Release All works with a GitHub CLI older than 2.48</a>. Thanks to xet7.</summary>
+
+The release script read the list of earlier releases with
+`gh api --paginate --slurp`, and `--slurp` exists only from GitHub CLI 2.48
+on. With an older `gh` the release stopped with "unknown flag: --slurp".
+`--paginate` alone prints the pages one after another, and `gh_pages()` now
+reads them that way. A truncated page is still an error, never a shorter list.
+`tests/remoteRelease.test.py` feeds it pages the way `gh` prints them.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/6ba808e">Publish all eight tools as one mongo-tools binary, 15 MB instead of 105 MB</a>. Thanks to xet7.</summary>
 
 The eight tools were eight Go programs, each with its own copy of the Go
