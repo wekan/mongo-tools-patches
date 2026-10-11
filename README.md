@@ -10,7 +10,12 @@ This repository carries **no mongo-tools source**. Each build clones current ups
 [`dist/`](dist/README.md), cross-compiles the eight tools (`bsondump`, `mongodump`,
 `mongoexport`, `mongofiles`, `mongoimport`, `mongorestore`, `mongostat`, `mongotop`)
 for every platform with CGO disabled, upgrades all dependencies with the newest stable
-Go, and publishes one binary per tool per platform with a `.sha256sum` beside each. It
+Go, and publishes one binary per tool per platform with a `.sha256sum` beside each.
+It also publishes `mongo-tools-<arch>`: all eight tools as ONE program
+([`releases/multicall.sh`](releases/multicall.sh)), about 15 MB where the eight
+separate binaries are about 105 MB, because they share one Go runtime, driver and
+common code. It runs as the tool it is named after - a link named `mongodump` is
+mongodump - or as `mongo-tools mongodump ...`. It
 replaces the `wekan/mongo-tools` source fork,
 which carried no source change of its own — only this build. Same model as
 [wekan/node-patches](https://github.com/wekan/node-patches).

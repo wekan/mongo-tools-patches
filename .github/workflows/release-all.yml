@@ -108,6 +108,11 @@ jobs:
       - name: Restore reviewed dependencies, remove telemetry and audit source
         run: bash _patches/releases/update-dependencies.sh
 
+      # All eight tools as one program, mongo-tools-<platform>: build-tools.sh
+      # builds it beside the per-tool binaries once its source exists.
+      - name: Generate the one-binary mongo-tools
+        run: bash _patches/releases/multicall.sh
+
       # The release has to exist BEFORE the build, because each binary is
       # attached to it the moment it is finished. It is created empty, with
       # placeholder notes; the real notes are written once the build is over.
@@ -169,6 +174,8 @@ jobs:
             echo "MongoDB Database Tools 🍃"
             echo ""
             echo "One \`<tool>-<arch>[.exe]\` binary per platform - bsondump, mongodump, mongoexport, mongofiles, mongoimport, mongorestore, mongostat, mongotop - for use with WeKan and FerretDB v1."
+            echo ""
+            echo "And \`mongo-tools-<arch>[.exe]\`: all eight in ONE binary (~15 MB instead of ~105 MB). Run it as the tool it is named after (a link or copy named \`mongodump\`), or as \`mongo-tools mongodump ...\`."
             echo ""
             echo "Platforms: ${plats% }"
             echo ""

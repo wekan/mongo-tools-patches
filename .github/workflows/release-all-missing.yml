@@ -91,6 +91,10 @@ jobs:
       - name: Restore reviewed dependencies, remove telemetry and audit source
         run: bash _patches/releases/update-dependencies.sh
 
+      # The one-binary mongo-tools, so a release that lacks it gets it too.
+      - name: Generate the one-binary mongo-tools
+        run: bash _patches/releases/multicall.sh
+
       - name: What the release already has
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

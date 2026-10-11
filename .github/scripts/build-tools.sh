@@ -128,6 +128,18 @@ already_there() {
 # cross-compiles to every GOARCH (those pull in C libs / a cross toolchain).
 LDFLAGS="-s -w -X main.VersionStr=$tools_ver -X main.GitCommit=$tools_commit"
 
+# mongo-tools-<platform>: all eight tools as ONE program (releases/multicall.sh),
+# ~15 MB where the eight separate binaries are ~105 MB, because they share one
+# Go runtime, driver and common code. It is run as the tool it is named after,
+# or as `mongo-tools <tool> ...`. Built when the workflow has generated its
+# source (wekan_multicall/), beside the per-tool binaries, which stay for every
+# consumer that still downloads them.
+BUILD_UNITS="$TOOLS"
+if [ -f wekan_multicall/main.go ]; then
+    BUILD_UNITS="$TOOLS mongo-tools"
+    MULTI_LDFLAGS="$(bash "$(dirname "$0")/../../releases/multicall.sh" --ldflags "$tools_ver" "$tools_commit")" || exit 1
+fi
+
 built=0
 skipped_existing=0
 skipped_broken=0
@@ -137,16 +149,18 @@ while read -r name goos goarch goarm; do
     [ -n "${name:-}" ] || continue
     arm=""; [ "$goarm" != "-" ] && arm="$goarm"
     ext=""; [ "$goos" = windows ] && ext=".exe"
-    for tool in $TOOLS; do
+    for tool in $BUILD_UNITS; do
         asset="${tool}-${name}${ext}"
+        pkg="./${tool}/main"; flags="$LDFLAGS"
+        if [ "$tool" = mongo-tools ]; then pkg="./wekan_multicall"; flags="$MULTI_LDFLAGS"; fi
         if already_there "$asset"; then
             echo "  have    $asset"
             skipped_existing=$((skipped_existing + 1))
             continue
         fi
         if CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOARM="$arm" \
-             go build -trimpath -ldflags "$LDFLAGS" \
-             -o "$out/$asset" "./${tool}/main" 2>"$tmp_root/${tool}-${name}.log"; then
+             go build -trimpath -ldflags "$flags" \
+             -o "$out/$asset" "$pkg" 2>"$tmp_root/${tool}-${name}.log"; then
             # A telemetry failure is fatal, never an unsupported-target skip.
             python3 "$audit_binary" --kind mongo-tools "$out/$asset" || exit 1
             # A checksum beside every binary, in the "<sum>  <file>" format
