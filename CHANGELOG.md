@@ -65,6 +65,20 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/4af7f92">Release only mongo-tools-arch, the one-binary build, 43 binaries instead of 387</a>. Thanks to xet7.</summary>
+
+Each platform got nine binaries - the eight tools and `mongo-tools` - so a
+release was 387 binaries and 774 uploads with their checksums. GitHub refused
+part way with "HTTP 403: API rate limit exceeded for installation", and the
+retries gave up. Every consumer downloads `mongo-tools-<platform>` now, so it
+is the only binary built and released: 43 binaries, 86 uploads. A build
+without the generated one-binary source fails instead of falling back to the
+separate tools. `tests/workflow-logic.sh` checks that no per-tool binary is
+built and that a tree without that source builds nothing.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/920b40e">Release All works with a GitHub CLI older than 2.48</a>. Thanks to xet7.</summary>
 
 The release script read the list of earlier releases with
@@ -86,7 +100,7 @@ in every WeKan bundle, image and snap. Each release now also has
 copy named `mongodump` runs mongodump, and `mongo-tools mongodump ...` works
 too. Each tool's options, help and version output are unchanged.
 `releases/multicall.sh` builds it from upstream's own sources without editing
-them. The separate binaries are still published. Tested with Go 1.27.1:
+them. Tested with Go 1.27.1:
 against a FerretDB server, dump, restore and export round-tripped the data
 unchanged. `tests/multicall.sh` covers every way of running it.
 
