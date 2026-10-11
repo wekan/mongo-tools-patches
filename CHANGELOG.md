@@ -65,6 +65,22 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/6ba808e">Publish all eight tools as one mongo-tools binary, 15 MB instead of 105 MB</a>. Thanks to xet7.</summary>
+
+The eight tools were eight Go programs, each with its own copy of the Go
+runtime, the MongoDB driver and the tools' shared code, together about 105 MB
+in every WeKan bundle, image and snap. Each release now also has
+`mongo-tools-<platform>`, all eight in one program of about 15 MB. A link or
+copy named `mongodump` runs mongodump, and `mongo-tools mongodump ...` works
+too. Each tool's options, help and version output are unchanged.
+`releases/multicall.sh` builds it from upstream's own sources without editing
+them. The separate binaries are still published. Tested with Go 1.27.1:
+against a FerretDB server, dump, restore and export round-tripped the data
+unchanged. `tests/multicall.sh` covers every way of running it.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/c5657ae">Let upstream SBOM dependency links follow version bumps</a>. Thanks to xet7.</summary>
 
 Upstream commit `9fd1c5bda47e` bumped mongo-driver/v2 from 2.8.2 to 2.9.1.
