@@ -710,7 +710,7 @@ echo
 echo "The workflows build the reviewed toolchain and dependency graph:"
 for wf in "$ALL" "$MISSING"; do
   n="$(basename "$wf")"
-  grep -q "go-version: '1.27.1'" "$wf" && ok "$n pins reviewed Go" \
+  grep -q "go-version: '1.27.2'" "$wf" && ok "$n pins reviewed Go" \
     || fail "$n does not pin reviewed Go"
   grep -q 'releases/update-dependencies.sh' "$wf" && ok "$n restores reviewed dependencies" \
     || fail "$n does not restore dependencies"

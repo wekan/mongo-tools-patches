@@ -57,7 +57,7 @@ A failed commit or push prevents dispatch. If dispatch fails after pushing,
 retry that prepared version rather than incrementing again.
 
 MongoDB Tools resolves an immutable upstream commit. Builds restore the existing
-locked Go 1.27.1 module graph, regenerate vendor, apply telemetry-removal patches
+locked Go 1.27.2 module graph, regenerate vendor, apply telemetry-removal patches
 and run automated source/binary checks. Dependency updates remain possible by
 editing the module files; changed hashes alone do not block them. New releases
 use `upstream-<full source commit>` as their tag: GitHub rejects bare
