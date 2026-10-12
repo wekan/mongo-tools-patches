@@ -65,6 +65,21 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/e4da9eb">Build with Go 1.27.2 and golang.org/x/net v0.60.0</a>. Thanks to xet7.</summary>
+
+The Quay scan of the WeKan v12.38 image listed the `mongo-tools` binary's Go
+1.27.1 standard library (GO-2026-6599 to GO-2026-6617, fixed in 1.27.2) and
+x/net v0.59.0 (fixed in 0.60.0). The reviewed module graph now requires Go
+1.27.2 and x/net v0.60.0, both release workflows install Go 1.27.2, and
+`releases/telemetry-audit.json` has the new source and vendor fingerprints.
+Both telemetry-removal patches still apply, the risk audit finds no new URL or
+keyword, and every test in `tests/` passes. A build of the locked upstream
+commit embeds go1.27.2 and x/net v0.60.0; govulncheck's one remaining hit, the
+deprecated `x/crypto/openpgp`, is not in the binary.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/4af7f92">Release only mongo-tools-arch, the one-binary build, 43 binaries instead of 387</a>. Thanks to xet7.</summary>
 
 Each platform got nine binaries - the eight tools and `mongo-tools` - so a
