@@ -65,6 +65,18 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 <details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/178f339">Build current upstream: the reviewed module graph follows upstream 3c3f949</a>. Thanks to xet7.</summary>
+
+Upstream master moved to golang-set/v3 and newer Go dependencies, and the
+reviewed graph was still the older commit's, so vendoring stopped with "no
+required module provides package". The graph, the telemetry audit fingerprints
+and two reviewed URLs (the SBOM's pkg.go.dev license lookups, MSAL's regional
+sign-in discovery) are updated, a failed vendor step now says what to refresh,
+and all 43 targets build and pass the telemetry gate.
+
+</details>
+
+<details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/e4da9eb">Build with Go 1.27.2 and golang.org/x/net v0.60.0</a>. Thanks to xet7.</summary>
 
 The Quay scan of the WeKan v12.38 image listed the `mongo-tools` binary's Go
