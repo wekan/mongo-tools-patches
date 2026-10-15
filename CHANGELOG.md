@@ -62,7 +62,7 @@ handled (their commits carry the short description and link).
 
 </details>
 
-# Upcoming mongo-tools-patches release
+# upstream-3c3f94948f0f447332ad34c16cec04ba9bcb12cc 2026-10-15 mongo-tools-patches release
 
 <details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/178f339">Build current upstream: the reviewed module graph follows upstream 3c3f949</a>. Thanks to xet7.</summary>
