@@ -1,18 +1,18 @@
 # Telemetry audit
 
 The reviewed source is mongodb/mongo-tools commit
-`5e7290222cae7ebd5eade59bc19d6f25b637a1d3`, with the complete dependency graph
-refreshed using Go 1.27.1. The exact module graph is covered by the inventory in
-`releases/telemetry-audit.json`.
+`3c3f94948f0f447332ad34c16cec04ba9bcb12cc`, with the complete dependency graph
+taken from that commit's go.mod/go.sum and vendored using Go 1.27.2. The exact
+module graph is covered by the inventory in `releases/telemetry-audit.json`.
 
 No standalone usage reporter was found in the tools' own source. The previous
 audit nevertheless missed automatic reporting in cloud SDK requests:
 
 | Dependency | Removed behavior |
 | --- | --- |
-| Azure azcore 1.23.1 | SDK, application, Go runtime and OS identification in User-Agent |
-| MSAL Go 1.9.0 | x-client-SKU, version, OS and CPU headers, including managed identity requests |
-| AWS SDK Go v2 1.47.0 | User-Agent collection and transmission of SDK/runtime/platform, execution environment, features and credential-source identifiers |
+| Azure azcore 1.23.3 | SDK, application, Go runtime and OS identification in User-Agent |
+| MSAL Go 1.10.1 | x-client-SKU, version, OS and CPU headers, including managed identity requests |
+| AWS SDK Go v2 1.47.3 | User-Agent collection and transmission of SDK/runtime/platform, execution environment, features and credential-source identifiers |
 | AWS SDK Go v1 1.55.8 | Default and custom User-Agent collection/transmission handlers |
 
 The patch removes the implementations and retained reporting state while keeping

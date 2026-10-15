@@ -10,7 +10,8 @@
   "allowUrlPatternsByFile": {
     "cyclonedx.sbom.json": [
       "https://api\\.deps\\.dev/v3/systems/go/packages/[A-Za-z0-9._~%-]+/versions/v[0-9][A-Za-z0-9.+-]*",
-      "https://pkg\\.go\\.dev/[A-Za-z0-9._~/-]+@(?:v[0-9][A-Za-z0-9.+-]*|go[0-9][0-9.]*)"
+      "https://pkg\\.go\\.dev/[A-Za-z0-9._~/-]+@(?:v[0-9][A-Za-z0-9.+-]*|go[0-9][0-9.]*)",
+      "https://pkg\\.go\\.dev/v1/package/[A-Za-z0-9._~/-]+\\?licenses=true&version=v[0-9][A-Za-z0-9.+-]*"
     ]
   },
   "files": {
@@ -3824,11 +3825,12 @@
       "keywords": {}
     },
     "vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/authority/authority.go": {
-      "sha256": "7935f9690e8f784ab0be7c4a52e9b69784a1511c4706053bba9257280235d42a",
+      "sha256": "81e06f52cb02aa4462245fa09d1a2c644560509ff3c4c27e6892a6bc6df43df0",
       "urls": [
         "http://169.254.169.254/metadata/instance/compute",
         "http://169.254.169.254/metadata/instance/compute?api-version=",
         "https://%s.%s/%s/v2.0/.well-known/openid-configuration",
+        "https://%s/%s/v2.0/.well-known/openid-configuration",
         "https://%s/common/UserRealm/%s",
         "https://%v/%v/oauth2/v2.0/authorize",
         "https://%v/common/discovery/instance",
@@ -3836,7 +3838,8 @@
         "https://login.microsoftonline.com/",
         "https://pkg.go.dev/hash#pkg-types"
       ],
-      "keywords": {}
+      "keywords": {},
+      "reason": "MSAL Go v1.10.1 regional Entra ID OpenID discovery endpoint template (authentication, not reporting)."
     },
     "vendor/github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/oauth/ops/authority/authorizetype_string.go": {
       "sha256": "ffed8c55b8e579f773b8a6d6da8b56ef2692da6a33fda0a528199f10324aa301",

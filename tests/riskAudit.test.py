@@ -62,7 +62,11 @@ class RiskAudit(unittest.TestCase):
         sbom = self.root/'cyclonedx.sbom.json'
         for url in ['https://api.deps.dev/v3/systems/go/packages/go.mongodb.org%2Fmongo-driver%2Fv2/versions/v2.9.1',
                     'https://pkg.go.dev/go.mongodb.org/mongo-driver/v2@v2.9.1',
-                    'https://pkg.go.dev/None/std@go1.27.1']:
+                    'https://pkg.go.dev/None/std@go1.27.1',
+                    # Upstream 3c3f94948f0f's SBOM cites licenses through the
+                    # pkg.go.dev v1 package API for the modules it bumped.
+                    'https://pkg.go.dev/v1/package/github.com/deckarep/golang-set/v3?licenses=true&version=v3.0.0',
+                    'https://pkg.go.dev/v1/package/golang.org/x/net?licenses=true&version=v0.61.0']:
             sbom.write_text(json.dumps({'url': url}))
             r.inspect(self.root, self.policy)
         # The same reference anywhere else is still a new URL.
@@ -75,7 +79,11 @@ class RiskAudit(unittest.TestCase):
                     'https://api.deps.dev/v3/query?hash=abc',
                     'https://api.deps.dev/v3/systems/go/packages/x/versions/v1.0.0?report=1',
                     'https://pkg.go.dev/x@v1.0.0?report=1',
-                    'https://pkg.go.dev/search?q=telemetry']:
+                    'https://pkg.go.dev/search?q=telemetry',
+                    'https://pkg.go.dev/v1/package/x?licenses=true&version=v1.0.0&report=1',
+                    'https://pkg.go.dev/v1/package/x?report=1&licenses=true&version=v1.0.0',
+                    'https://pkg.go.dev/v1/search?licenses=true&version=v1.0.0',
+                    'https://evil.example/v1/package/x?licenses=true&version=v1.0.0']:
             sbom.write_text(json.dumps({'url': url}))
             with self.assertRaisesRegex(ValueError, 'cyclonedx.sbom.json: new URL'): r.inspect(self.root, self.policy)
 
