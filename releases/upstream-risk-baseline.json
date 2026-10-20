@@ -19013,6 +19013,65 @@
       "sha256": "5e29848cb6ddbfe90bea82fd2c26e507de666833a1ff45dfd545a4bf5bb6254d",
       "urls": [],
       "keywords": {}
+    },
+    "vendor/github.com/CycloneDX/cyclonedx-go/convert.go": {
+      "sha256": "3c990336b3b9c88061b97d41a94fe7bb75fccd04a40ac8710a667a02bd5e3905",
+      "urls": [
+        "http://www.apache.org/licenses/LICENSE-2.0",
+        "https://cyclonedx.org/docs/1.5/json/#components_items_evidence_identity",
+        "https://github.com/CycloneDX/cyclonedx-go/issues/115#issuecomment-1688710539"
+      ],
+      "keywords": {},
+      "reason": "cyclonedx-go v0.12.0 (upstream release/sbom, TOOLS SBOM generation): CycloneDX spec documentation and a cyclonedx-go issue cited in comments. The library makes no network requests."
+    },
+    "vendor/github.com/CycloneDX/cyclonedx-go/cyclonedx.go": {
+      "sha256": "b340a75ab2142ee31bd9b2b6373704cea57731a315cec2aa89f2b8df8e692beb",
+      "urls": [
+        "http://www.apache.org/licenses/LICENSE-2.0",
+        "https://cyclonedx.org/specification/overview/#registered-media-types"
+      ],
+      "keywords": {},
+      "reason": "cyclonedx-go v0.12.0 (upstream release/sbom, TOOLS SBOM generation): CycloneDX media-type documentation cited in a comment. The library makes no network requests."
+    },
+    "vendor/github.com/CycloneDX/cyclonedx-go/cyclonedx_json.go": {
+      "sha256": "6262120edbb49f918e64dda85c2881286e1367959f8225c74b94fe9cbfde79da",
+      "urls": [
+        "http://cyclonedx.org/schema/bom-1.2.schema.json",
+        "http://cyclonedx.org/schema/bom-1.3.schema.json",
+        "http://cyclonedx.org/schema/bom-1.4.schema.json",
+        "http://cyclonedx.org/schema/bom-1.5.schema.json",
+        "http://cyclonedx.org/schema/bom-1.6.schema.json",
+        "http://cyclonedx.org/schema/bom-1.7.schema.json",
+        "http://www.apache.org/licenses/LICENSE-2.0"
+      ],
+      "keywords": {},
+      "reason": "cyclonedx-go v0.12.0 (upstream release/sbom, TOOLS SBOM generation): CycloneDX JSON schema identifiers ($schema values written into the SBOM), not fetched. The library makes no network requests."
+    },
+    "vendor/github.com/CycloneDX/cyclonedx-go/cyclonedx_xml.go": {
+      "sha256": "9e5d839842d426f946ee5d1ef4507ff46a3f01342c5252f163db467ffe8bc976",
+      "urls": [
+        "http://cyclonedx.org/schema/bom/1.0",
+        "http://cyclonedx.org/schema/bom/1.1",
+        "http://cyclonedx.org/schema/bom/1.2",
+        "http://cyclonedx.org/schema/bom/1.3",
+        "http://cyclonedx.org/schema/bom/1.4",
+        "http://cyclonedx.org/schema/bom/1.5",
+        "http://cyclonedx.org/schema/bom/1.6",
+        "http://cyclonedx.org/schema/bom/1.7",
+        "http://www.apache.org/licenses/LICENSE-2.0"
+      ],
+      "keywords": {},
+      "reason": "cyclonedx-go v0.12.0 (upstream release/sbom, TOOLS SBOM generation): CycloneDX XML namespace identifiers written into the SBOM, not fetched. The library makes no network requests."
+    },
+    "vendor/github.com/CycloneDX/cyclonedx-go/link.go": {
+      "sha256": "15cdbcd78a1ab25fe6f8b6d223edd95c36ad4d92b4e824a74d0c10a0edeaffee",
+      "urls": [
+        "http://www.apache.org/licenses/LICENSE-2.0",
+        "https://cyclonedx.org/capabilities/bomlink/",
+        "https://www.iana.org/assignments/urn-formal/cdx"
+      ],
+      "keywords": {},
+      "reason": "cyclonedx-go v0.12.0 (upstream release/sbom, TOOLS SBOM generation): BOM-Link specification and IANA URN registry cited in comments. The library makes no network requests."
     }
   }
 }
