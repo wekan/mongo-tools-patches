@@ -62,7 +62,7 @@ handled (their commits carry the short description and link).
 
 </details>
 
-# Upcoming mongo-tools-patches release
+# upstream-d97cdbec5e91adb2dd70da49d5452de98ba7f98a 2026-10-20 mongo-tools-patches release
 
 **In short:** builds current upstream again: its new **SBOM** code brings in
 **CycloneDX/cyclonedx-go**, and the reviewed module graph, the risk baseline
