@@ -62,6 +62,25 @@ handled (their commits carry the short description and link).
 
 </details>
 
+# Upcoming mongo-tools-patches release
+
+**In short:** builds current upstream again: its new **SBOM** code brings in
+**CycloneDX/cyclonedx-go**, and the reviewed module graph, the risk baseline
+and the telemetry fingerprints follow it.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/2892221">Build current upstream: the reviewed module graph follows upstream d97cdbe</a>. Thanks to xet7.</summary>
+
+Upstream master added `release/sbom`, which imports cyclonedx-go, and the
+reviewed graph was still 3c3f949's, so vendoring stopped with "no required
+module provides package" before any platform built. The graph gains
+cyclonedx-go 0.12.0 (x/net stays 0.61.0). The library's CycloneDX schema and
+namespace identifiers are recorded as known references, since it makes no
+network requests. The telemetry fingerprints are re-recorded. All 43 targets
+build and pass the telemetry gate.
+
+</details>
+
 # upstream-3c3f94948f0f447332ad34c16cec04ba9bcb12cc 2026-10-15 mongo-tools-patches release
 
 <details>
