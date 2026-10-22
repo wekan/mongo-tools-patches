@@ -62,6 +62,21 @@ handled (their commits carry the short description and link).
 
 </details>
 
+# Upcoming mongo-tools-patches release
+
+**In short:** a test keeps **Cancel workflow** able to stop a release run.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/172a9a2">Cancel workflow stops the run, and a test keeps it that way</a>. Thanks to xet7.</summary>
+
+Cancel workflow does not cancel a job whose `if:` is still true, and
+`always()` is true in a cancelled run. Here only the steps that attach a
+finished binary use `always()`, and no job does. `tests/workflow-logic.sh`
+now fails on a job on `always()` that is a reusable workflow or has no timeout
+of 60 minutes or less, which is what kept node-patches' cancelled runs going.
+
+</details>
+
 # upstream-d97cdbec5e91adb2dd70da49d5452de98ba7f98a 2026-10-20 mongo-tools-patches release
 
 **In short:** builds current upstream again: its new **SBOM** code brings in
