@@ -62,6 +62,24 @@ handled (their commits carry the short description and link).
 
 </details>
 
+# Upcoming mongo-tools-patches release
+
+**In short:** the tools are built with **Go 1.27.3**, which carries security
+fixes to `crypto/x509`.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/e844d9b">Build with Go 1.27.3, through actions/setup-go v7</a>. Thanks to xet7.</summary>
+
+Go 1.27.3 carries security fixes to `crypto/x509`, which every tool's TLS
+connection to MongoDB uses. Both release workflows move from 1.27.2, and from
+`setup-go` v5, whose node20 runtime GitHub is retiring, to v7, which FerretDB's
+releases already use. The reviewed module graph is unchanged:
+`releases/reviewed-go/go.mod`'s `go` directive is a minimum, and 1.27.2 builds
+with the 1.27.3 toolchain. `tests/workflow-logic.sh` pins the new toolchain,
+and `tests/no-telemetry-upstream.sh` passes with it.
+
+</details>
+
 # upstream-28b22fa309aa34b269b000369db846de9f65f223 2026-10-22 mongo-tools-patches release
 
 **In short:** a test keeps **Cancel workflow** able to stop a release run.
