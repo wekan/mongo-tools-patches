@@ -62,7 +62,7 @@ handled (their commits carry the short description and link).
 
 </details>
 
-# Upcoming mongo-tools-patches release
+# upstream-28b22fa309aa34b269b000369db846de9f65f223 2026-10-22 mongo-tools-patches release
 
 **In short:** a test keeps **Cancel workflow** able to stop a release run.
 
