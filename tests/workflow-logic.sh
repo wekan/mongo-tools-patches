@@ -710,7 +710,9 @@ echo
 echo "The workflows build the reviewed toolchain and dependency graph:"
 for wf in "$ALL" "$MISSING"; do
   n="$(basename "$wf")"
-  grep -q "go-version: '1.27.2'" "$wf" && ok "$n pins reviewed Go" \
+  # The TOOLCHAIN is a reviewed Go release: 1.27.3 carries the crypto/x509
+  # security fix. releases/reviewed-go/go.mod's go directive stays a minimum.
+  grep -q "go-version: '1.27.3'" "$wf" && ok "$n pins reviewed Go" \
     || fail "$n does not pin reviewed Go"
   grep -q 'releases/update-dependencies.sh' "$wf" && ok "$n restores reviewed dependencies" \
     || fail "$n does not restore dependencies"
