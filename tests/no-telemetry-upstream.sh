@@ -2,7 +2,9 @@
 # Audit an existing, patched, dependency-refreshed tree, or prepare current upstream.
 # Network failures while cloning are a skip (77); audit failures never are.
 set -euo pipefail
-export GOTELEMETRY=off
+# GOTELEMETRY=off in the environment does not turn off the Go toolchain's own
+# telemetry - the mode file that `go telemetry off` writes does.
+if command -v go >/dev/null 2>&1; then go telemetry off || exit 1; fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 if [ "${1:-}" = --source ]; then
   exec python3 "$root/releases/audit-telemetry.py" "${2:?source directory required}"

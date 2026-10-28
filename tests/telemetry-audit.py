@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 sys.dont_write_bytecode = True
 from pathlib import Path
@@ -88,8 +89,39 @@ class TelemetryAudit(unittest.TestCase):
         build = (ROOT / '.github/scripts/build-tools.sh').read_text()
         self.assertIn('audit-telemetry.py" . || exit 1', build)
         self.assertLess(build.index('audit-telemetry.py'), build.index('while read -r name'))
-        self.assertIn('export GOTELEMETRY=off', update)
-        self.assertIn('export GOTELEMETRY=off', build)
+        self.assertIn('go telemetry off', update)
+        self.assertIn('go telemetry off', build)
+
+    def test_every_go_command_runs_with_go_telemetry_off(self):
+        # GOTELEMETRY=off in the environment does not turn off the Go
+        # toolchain's own telemetry (`go env GOTELEMETRY` still says local);
+        # only the mode file `go telemetry off` writes does. So every script
+        # and workflow that runs go also runs that.
+        files = [f for f in ROOT.rglob('*') if f.is_file() and f.suffix in ('.sh', '.py', '.yml')
+                 and not {'.git', 'vendor', 'fixtures'} & set(f.relative_to(ROOT).parts)
+                 and f != Path(__file__).resolve()]
+        runs = [f for f in files if runs_go(f.read_text(errors='replace'))]
+        self.assertIn(ROOT / '.github/scripts/build-tools.sh', runs)
+        self.assertEqual([str(f.relative_to(ROOT)) for f in runs if not turns_off(f.read_text())], [])
+
+    def test_the_environment_variable_alone_is_refused(self):
+        # Negative: the no-op this replaced.
+        self.assertTrue(runs_go('export GOTELEMETRY=off\ngo build ./x\n'))
+        self.assertFalse(turns_off('export GOTELEMETRY=off\ngo build ./x\n'))
+        self.assertTrue(turns_off("subprocess.run(['go', 'telemetry', 'off'])"))
+        self.assertFalse(runs_go('# `go build ./mongodump/main` works\n'))
+
+
+GO_COMMAND = re.compile(r"^[^#\n]*(?:(?:^|[ ;&(|])go (?:build|test|run|install|mod|vet|generate|get|list)\b"
+                        r"|\['go', '(?:build|test|run|install|mod|vet|generate|get|list)'|actions/setup-go)", re.M)
+
+
+def runs_go(text):
+    return bool(GO_COMMAND.search(text))
+
+
+def turns_off(text):
+    return 'go telemetry off' in text or "['go', 'telemetry', 'off']" in text
 
 
 if __name__ == '__main__':

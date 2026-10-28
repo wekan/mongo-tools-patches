@@ -217,7 +217,9 @@ mkdir -p "$TMP/bin"
 cat > "$TMP/bin/go" <<'STUB'
 #!/bin/sh
 # Stand-in for `go build ...`: writes the -o file, or refuses for the one target
-# this test wants to see skipped.
+# this test wants to see skipped. `go telemetry off` is recorded beside it, so
+# the build can be checked to have turned the toolchain's telemetry off.
+if [ "$*" = "telemetry off" ]; then : > "$(dirname "$0")/telemetry-off"; exit 0; fi
 out=""
 while [ $# -gt 0 ]; do
   case "$1" in -o) out="$2"; shift ;; esac
@@ -274,6 +276,8 @@ sums="$(find "$BUILD/out" -type f -name '*.sha256sum' 2>/dev/null | wc -l | tr -
 # loosened.
 [ "$bins" = "42" ] && ok "mongo-tools for 43 targets, less the one that does not compile ($bins)" \
                    || fail "expected 42 binaries, got $bins"
+[ -f "$TMP/bin/telemetry-off" ] && ok "the build ran go telemetry off" \
+  || fail "the build left the Go toolchain's telemetry on"
 [ "$sums" = "$bins" ] && ok "a .sha256sum beside every binary ($sums)" \
                       || fail "$bins binaries but $sums checksums"
 targets="$(sed -n '/^TARGETS="/,/^"$/p' "$ROOT/.github/scripts/build-tools.sh" |
@@ -406,6 +410,7 @@ grep -q '  built   mongo-tools-arm64$' "$TMP/skip.log" \
 # complete release, and it must fail.
 cat > "$TMP/bin/go" <<'STUB'
 #!/bin/sh
+[ "$*" = "telemetry off" ] && exit 0
 echo "stub: nothing compiles" >&2
 exit 1
 STUB
@@ -541,6 +546,7 @@ done
 ORDER="$TMP/order"; mkdir -p "$ORDER/bin"
 cat > "$ORDER/bin/go" <<'STUB'
 #!/bin/sh
+[ "$*" = "telemetry off" ] && exit 0
 out=""; while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift ;; esac; shift; done
 echo "build $(basename "$out")" >> "$ORDER_LOG"
 case "$out" in *mongo-tools-loong64*) exit 1 ;; esac

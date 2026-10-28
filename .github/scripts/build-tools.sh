@@ -45,7 +45,9 @@
 # also the moment a patch in dist/ becomes worth writing.
 
 set -uo pipefail
-export GOTELEMETRY=off
+# GOTELEMETRY=off in the environment does not turn off the Go toolchain's own
+# telemetry - the mode file that `go telemetry off` writes does.
+if command -v go >/dev/null 2>&1; then go telemetry off || exit 1; fi
 audit_binary="$(cd "$(dirname "$0")/../../releases" && pwd)/check-telemetry.py"
 python3 "$(dirname "$0")/../../releases/audit-telemetry.py" . || exit 1
 

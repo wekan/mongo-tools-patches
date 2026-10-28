@@ -2,7 +2,9 @@
 # Restore the reviewed upstream module graph and regenerate vendor/.
 # Keep the compatibility filename used by both release workflows.
 set -euo pipefail
-export GOTELEMETRY=off
+# GOTELEMETRY=off in the environment does not turn off the Go toolchain's own
+# telemetry - the mode file that `go telemetry off` writes does.
+if command -v go >/dev/null 2>&1; then go telemetry off || exit 1; fi
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # Release builds use the reviewed graph. Updating dependencies is a separate

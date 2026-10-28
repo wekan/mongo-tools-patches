@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Run against a prepared upstream tree. All HTTP requests use in-process fakes.
 set -euo pipefail
-export GOTELEMETRY=off
+# GOTELEMETRY=off in the environment does not turn off the Go toolchain's own
+# telemetry - the mode file that `go telemetry off` writes does.
+if command -v go >/dev/null 2>&1; then go telemetry off || exit 1; fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${1:?prepared upstream source directory required}"
 created=()

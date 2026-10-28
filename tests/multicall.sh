@@ -71,6 +71,7 @@ cp -r "$SRC" "$TMP/twice"; printf '\nfunc main() {\n}\n' >> "$TMP/twice/mongotop
 if ! command -v go >/dev/null 2>&1; then
   echo "skip the build and run checks: no go on PATH"
 else
+  go telemetry off >/dev/null || fail "go telemetry off"
   ( cd "$SRC" && CGO_ENABLED=0 GOFLAGS=-mod=mod go build -trimpath -ldflags "$flags" -o "$TMP/mongo-tools" ./wekan_multicall ) \
     >"$TMP/build.log" 2>&1 && ok "it builds" || fail "build failed: $(tail -3 "$TMP/build.log")"
   for t in $TOOLS; do ln -s mongo-tools "$TMP/$t"; done

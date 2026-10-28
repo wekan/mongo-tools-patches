@@ -35,6 +35,8 @@ class TerminalPatch(unittest.TestCase):
             (vendor / 'go.mod').write_text('module terminalfixture\n\ngo 1.20\n')
             env = dict(os.environ, GOTELEMETRY='off', GOTOOLCHAIN='local', GOPROXY='off',
                        GOSUMDB='off', CGO_ENABLED='0', GOARCH='amd64', GOFLAGS='')
+            # GOTELEMETRY above does not turn it off; the mode file this writes does.
+            subprocess.run(['go', 'telemetry', 'off'], env=env, check=True)
             for target in ['dragonfly', 'darwin', 'freebsd', 'openbsd', 'netbsd', 'linux']:
                 with self.subTest(target=target):
                     env['GOOS'] = target
