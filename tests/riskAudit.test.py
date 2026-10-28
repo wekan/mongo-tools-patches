@@ -87,6 +87,34 @@ class RiskAudit(unittest.TestCase):
             sbom.write_text(json.dumps({'url': url}))
             with self.assertRaisesRegex(ValueError, 'cyclonedx.sbom.json: new URL'): r.inspect(self.root, self.policy)
 
+    def test_each_releases_ssdlc_sbom_is_allowed_by_its_glob(self):
+        # Upstream adds ssdlc/<version>.bom.json with every release; 100.20.0
+        # stopped a build on its pkg.go.dev license pages and component repos,
+        # because the allowance was keyed by one exact file name.
+        upstream = json.loads((ROOT/'releases/upstream-risk-baseline.json').read_text())
+        self.policy['allowUrlPatternsByFile'] = upstream['allowUrlPatternsByFile']
+        (self.root/'ssdlc').mkdir()
+        bom = self.root/'ssdlc/100.21.0.bom.json'
+        for url in ['https://pkg.go.dev/v1/package/golang.org/x/net?licenses=true&version=v0.62.0',
+                    'https://github.com/Azure/azure-sdk-for-go/sdk/azcore',
+                    'https://gopkg.in/yaml.v2']:
+            bom.write_text(json.dumps({'url': url}))
+            r.inspect(self.root, self.policy)
+        # Negative: other hosts, and query strings on a repo URL, in the SBOM.
+        for url in ['https://evil.example/v1/package/x?licenses=true&version=v1.0.0',
+                    'https://github.com/x/y?report=1',
+                    'https://pkg.go.dev/search?q=telemetry']:
+            bom.write_text(json.dumps({'url': url}))
+            with self.assertRaisesRegex(ValueError, 'ssdlc/100.21.0.bom.json: new URL'): r.inspect(self.root, self.policy)
+        # Negative: the glob is for SBOMs only - a .sarif.json beside them, or
+        # the same reference in source, is still a new URL.
+        bom.unlink()
+        (self.root/'ssdlc/100.21.0.sarif.json').write_text(json.dumps({'url': 'https://github.com/x/y'}))
+        with self.assertRaisesRegex(ValueError, 'sarif.json: new URL'): r.inspect(self.root, self.policy)
+        (self.root/'ssdlc/100.21.0.sarif.json').unlink()
+        self.file.write_text('fetch("https://gopkg.in/yaml.v2")')
+        with self.assertRaisesRegex(ValueError, 'main.js: new URL'): r.inspect(self.root, self.policy)
+
     def test_known_bad_hash_always_blocks_source_or_binary(self):
         self.policy['denyHashes']=[hashlib.sha256(self.file.read_bytes()).hexdigest()]
         with self.assertRaisesRegex(ValueError,'hash'):r.inspect(self.root,self.policy)

@@ -12,6 +12,11 @@
       "https://api\\.deps\\.dev/v3/systems/go/packages/[A-Za-z0-9._~%-]+/versions/v[0-9][A-Za-z0-9.+-]*",
       "https://pkg\\.go\\.dev/[A-Za-z0-9._~/-]+@(?:v[0-9][A-Za-z0-9.+-]*|go[0-9][0-9.]*)",
       "https://pkg\\.go\\.dev/v1/package/[A-Za-z0-9._~/-]+\\?licenses=true&version=v[0-9][A-Za-z0-9.+-]*"
+    ],
+    "ssdlc/*.bom.json": [
+      "https://pkg\\.go\\.dev/v1/package/[A-Za-z0-9._~/-]+\\?licenses=true&version=v[0-9][A-Za-z0-9.+-]*",
+      "https://github\\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*",
+      "https://gopkg\\.in/[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*"
     ]
   },
   "files": {
@@ -910,12 +915,14 @@
       "keywords": {}
     },
     "etc/mise.run.sh": {
-      "sha256": "b27edd99b89288d43b3a111ed50e70f22f891a375228293fd52de9a0df6775c1",
+      "sha256": "5c5d50685ad52c26a7fd691bda5505f6908a7953b2766fc5bd61d2ae3c4a2df1",
       "urls": [
-        "https://github.com/jdx/mise/releases/download/v${version",
-        "https://mise.en.dev/v${version"
+        "https://github.com/jdx/mise/releases/download/v$1",
+        "https://mise.jdx.dev/releases.tsv",
+        "https://mise.jdx.dev/v$1"
       ],
-      "keywords": {}
+      "keywords": {},
+      "reason": "Upstream's installer for the mise developer tool (etc/mise.run.sh, run by upstream's own developer setup, never by this build): downloads mise from mise.jdx.dev and github.com/jdx/mise releases. Not compiled into any tool."
     },
     "etc/mongodb-downloader-config.yaml": {
       "sha256": "7ae6107c1ee5d4cc42f5c350c69a2a33fb1d0521f671428a58b013989bdac1a5",

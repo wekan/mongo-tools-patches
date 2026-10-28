@@ -6,6 +6,7 @@ keywords and new URL literals fail with paths/evidence. Baseline edits are ordin
 maintainer configuration; no AI approval or whole-dependency review is required.
 """
 import argparse
+import fnmatch
 import hashlib
 import json
 from pathlib import Path
@@ -89,8 +90,11 @@ def inspect(root, policy):
         for url in entry['urls']:
             if url in known_urls:
                 known_url_count += 1
-            allowed = any(re.fullmatch(pattern, url) for pattern in
-                          policy.get('allowUrlPatternsByFile', {}).get(name, []))
+            # A key is a file name or a glob: upstream adds an
+            # ssdlc/<version>.bom.json with every release.
+            allowed = any(re.fullmatch(pattern, url)
+                          for key, patterns in policy.get('allowUrlPatternsByFile', {}).items()
+                          if fnmatch.fnmatchcase(name, key) for pattern in patterns)
             if initialized and url not in known_urls and not allowed:
                 # Do not expose query strings or credentials in logs.
                 from urllib.parse import urlsplit
