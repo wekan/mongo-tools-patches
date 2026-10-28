@@ -65,7 +65,8 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 **In short:** the **Go toolchain's own telemetry** is really off when the tools
-are built and tested.
+are built and tested, and the build follows upstream **edd1235**, whose
+per-release **SBOM** and developer-tool installer stopped the risk audit.
 
 <details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/93fd8cf">Turn off the Go toolchain's own telemetry with go telemetry off</a>. Thanks to xet7.</summary>
@@ -78,6 +79,21 @@ scripts and both release workflows now run it before any other go command.
 `tests/telemetry-audit.py` fails when a script or workflow runs go without it,
 with a negative test for the environment variable alone, and
 `tests/workflow-logic.sh` checks that the build ran it.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/47d5f75">Build current upstream: every release's ssdlc SBOM, and mise.run.sh's new download host</a>. Thanks to xet7.</summary>
+
+Upstream edd1235 stopped the release at the risk audit on two files no tool
+is built from. `ssdlc/100.20.0.bom.json` - an SBOM upstream adds with every
+release - names each dependency's pkg.go.dev license page and repository, but
+the allowance for SBOM references was keyed by the one file
+`cyclonedx.sbom.json`. Its keys may now be globs, and `ssdlc/*.bom.json`
+allows those shapes only. `etc/mise.run.sh`, upstream's mise installer, moved
+to mise.jdx.dev and is recorded as a known reference with its hash.
+`tests/riskAudit.test.py` pins both sides. On a fresh edd1235 tree the
+dependency refresh, both audits and all 43 targets pass.
 
 </details>
 
