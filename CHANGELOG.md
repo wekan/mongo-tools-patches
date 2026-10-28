@@ -62,6 +62,25 @@ handled (their commits carry the short description and link).
 
 </details>
 
+# Upcoming mongo-tools-patches release
+
+**In short:** the **Go toolchain's own telemetry** is really off when the tools
+are built and tested.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/93fd8cf">Turn off the Go toolchain's own telemetry with go telemetry off</a>. Thanks to xet7.</summary>
+
+`GOTELEMETRY=off` in the environment did not change it: `go env GOTELEMETRY`
+still reported `local`, and every go command wrote counters under the user's
+config directory - nothing was uploaded - because the mode is read only from
+the file `go telemetry off` writes. The build, dependency refresh and test
+scripts and both release workflows now run it before any other go command.
+`tests/telemetry-audit.py` fails when a script or workflow runs go without it,
+with a negative test for the environment variable alone, and
+`tests/workflow-logic.sh` checks that the build ran it.
+
+</details>
+
 # upstream-28b22fa309aa34b269b000369db846de9f65f223 2026-10-22 mongo-tools-patches release
 
 **In short:** the tools are built with **Go 1.27.3**, which carries security
