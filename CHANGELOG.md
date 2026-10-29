@@ -65,8 +65,10 @@ handled (their commits carry the short description and link).
 # Upcoming mongo-tools-patches release
 
 **In short:** the **Go toolchain's own telemetry** is really off when the tools
-are built and tested, and the build follows upstream **edd1235**, whose
-per-release **SBOM** and developer-tool installer stopped the risk audit.
+are built and tested, and the build follows upstream **b9ce73d**, whose
+**goccy/go-yaml** replaced the yaml.v2/v3 modules the reviewed graph had, after
+**edd1235**, whose per-release **SBOM** and developer-tool installer stopped the
+risk audit.
 
 <details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/93fd8cf">Turn off the Go toolchain's own telemetry with go telemetry off</a>. Thanks to xet7.</summary>
@@ -96,6 +98,24 @@ to mise.jdx.dev and is recorded as a known reference with its hash.
 dependency refresh, both audits and all 43 targets pass.
 
 </details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/789d5d1">Build current upstream: refresh the reviewed module graph to b9ce73d</a>. Thanks to xet7.</summary>
+
+Upstream b9ce73d (TOOLS-4429) replaced gopkg.in/yaml.v2 and yaml.v3 with
+goccy/go-yaml 1.19.2, so the read-only vendor step stopped on every platform
+before any build. `releases/reviewed-go` is now b9ce73d's go.mod and go.sum,
+keeping the reviewed go 1.27.2 directive. go-yaml's comment URLs (the YAML
+specification, its issues, cited sources) are recorded as known references; it
+imports no `net`, `net/http` or `os/exec`. The source and vendor fingerprints
+are re-recorded. On a fresh b9ce73d clone the old graph reproduces the error;
+with the new one every check passes, all 43 targets cross-compile and pass the
+binary telemetry gate, and the macOS binary reads a `--config` YAML file.
+
+</details>
+
+- [Remove committed Python bytecode, and ignore `__pycache__`](https://github.com/wekan/mongo-tools-patches/commit/da0bf18).
+  Thanks to xet7.
 
 # upstream-28b22fa309aa34b269b000369db846de9f65f223 2026-10-22 mongo-tools-patches release
 
