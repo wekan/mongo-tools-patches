@@ -19079,6 +19079,72 @@
       ],
       "keywords": {},
       "reason": "cyclonedx-go v0.12.0 (upstream release/sbom, TOOLS SBOM generation): BOM-Link specification and IANA URN registry cited in comments. The library makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/ast/ast.go": {
+      "sha256": "ffda35a0261de33c56ca3f87cc3e4a2503bd94e7465a23e31c1457bb145acb00",
+      "urls": [
+        "https://yaml.org/spec/1.2.2/#732-single-quoted-style",
+        "https://yaml.org/spec/1.2/spec.html"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): the YAML 1.2 specification cited in comments. The library imports no net, net/http or os/exec and makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/parser/parser.go": {
+      "sha256": "d340597d7b4de92f47742416d022b03de990d7bde8b9d30e62457a8ddac112d2",
+      "urls": [
+        "https://github.com/goccy/go-yaml/issues/254"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): a go-yaml issue cited in a comment. The library imports no net, net/http or os/exec and makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/printer/color.go": {
+      "sha256": "6d4c3d9ec7031eed984d047fd2966a6ab5e32bf070f3856cd6b6f43bf9674a47",
+      "urls": [
+        "https://github.com/fatih/color"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): the fatih/color library the code was inspired by, cited in a comment. The library imports no net, net/http or os/exec and makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/scanner/context.go": {
+      "sha256": "46e97f39c3373be9be7c99f2f09011b5ffe862ff52d33e07c2d8f949cfde09c2",
+      "urls": [
+        "https://yaml.org/spec/1.2.2/#8112-block-chomping-indicator"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): the YAML 1.2.2 specification cited in a comment. The library imports no net, net/http or os/exec and makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/scanner/scanner.go": {
+      "sha256": "fe862e8e31144a4143c815b74aa33c1caf99cd6f83e349df615e5d662b7cecf3",
+      "urls": [
+        "https://yaml.org/spec/1.2/spec.html"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): the YAML 1.2 specification cited in a comment. The library imports no net, net/http or os/exec and makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/stdlib_quote.go": {
+      "sha256": "168c237b19276d29e0cb0970360ab81d0dd17011a1a1f4ea786f94741f88a556",
+      "urls": [
+        "https://github.com/golang/go/blob/e3769299cd3484e018e0e2a6e1b95c2b18ce4f41/src/strconv/quote.go"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): the Go standard library file it was copied from, cited in a comment. The library imports no net, net/http or os/exec and makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/validate.go": {
+      "sha256": "9e17c1166d96e90df1be6e35fd89d31b51f128f725bc6f73235a41797e456e35",
+      "urls": [
+        "https://pkg.go.dev/github.com/go-playground/validator/v10#FieldError",
+        "https://pkg.go.dev/github.com/go-playground/validator/v10#Validate.Struct"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): go-playground/validator documentation cited in comments. The library imports no net, net/http or os/exec and makes no network requests."
+    },
+    "vendor/github.com/goccy/go-yaml/yaml.go": {
+      "sha256": "b68df5e0f92cebf99a79ed4bcce6d0790eb5046b7d37721ea14296bd8b816f46",
+      "urls": [
+        "https://github.com/goccy/go-yaml/issues/695"
+      ],
+      "keywords": {},
+      "reason": "go-yaml v1.19.2 (upstream b9ce73d replaced gopkg.in/yaml.v2 and yaml.v3 with it, TOOLS-4429): a go-yaml issue cited in a comment. The library imports no net, net/http or os/exec and makes no network requests."
     }
   }
 }

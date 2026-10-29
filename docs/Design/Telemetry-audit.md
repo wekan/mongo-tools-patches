@@ -1,12 +1,16 @@
 # Telemetry audit
 
 The reviewed source is mongodb/mongo-tools commit
-`d97cdbec5e91adb2dd70da49d5452de98ba7f98a`, with the complete dependency graph
+`b9ce73dc121d6a881c82560b1e32365594688825`, with the complete dependency graph
 taken from that commit's go.mod/go.sum and vendored using Go 1.27.2. The exact
 module graph is covered by the inventory in `releases/telemetry-audit.json`.
-That commit added `release/sbom`, which brings in CycloneDX/cyclonedx-go
+Upstream `d97cdbe` added `release/sbom`, which brings in CycloneDX/cyclonedx-go
 0.12.0. It writes the SBOM and makes no network requests; its CycloneDX schema
 and namespace identifiers are recorded in `releases/upstream-risk-baseline.json`.
+Upstream `b9ce73d` (TOOLS-4429) replaced gopkg.in/yaml.v2 and yaml.v3 with
+goccy/go-yaml 1.19.2, which reads the tools' `--config` files. It imports no
+`net`, `net/http` or `os/exec`; the URLs in its comments (the YAML
+specification, its issues, the sources it cites) are recorded there too.
 
 No standalone usage reporter was found in the tools' own source. The previous
 audit nevertheless missed automatic reporting in cloud SDK requests:

@@ -1,14 +1,14 @@
 {
-  "upstreamCommit": "d97cdbec5e91adb2dd70da49d5452de98ba7f98a",
+  "upstreamCommit": "b9ce73dc121d6a881c82560b1e32365594688825",
   "goVersion": "go1.27.2",
   "trees": {
     "source": {
-      "files": 886,
-      "sha256": "9593211b215ef8c7bcebca3b8424f2fb4e5d6c163613fbd71194aedca1e8926e"
+      "files": 879,
+      "sha256": "a838f5d9d3e52125a8faf62bd0c96d1e50f5d450c862a2ec5e4005169d8081f8"
     },
     "vendor": {
-      "files": 2605,
-      "sha256": "5f447b3401c8fc4893404c62eefd0322107fc0148ea6e99203e1baba47e7cdaa"
+      "files": 2604,
+      "sha256": "55b49ef8e75833f03f3881e6df585ea32335cdeadd97ae4985e5779e074b43bc"
     }
   }
 }
