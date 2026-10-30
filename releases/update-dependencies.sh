@@ -11,12 +11,18 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 # review task: never resolve new versions after the local release preflight.
 cp "$root/releases/reviewed-go/go.mod" go.mod
 cp "$root/releases/reviewed-go/go.sum" go.sum
+# CVE-2026-98432: no MPTCP listener by default (Go's default since 1.24). The
+# reviewed go.mod carries the setting; a refresh from upstream must keep it.
+if ! grep -qx 'godebug multipathtcp=0' go.mod; then
+  echo "::error::releases/reviewed-go/go.mod lost 'godebug multipathtcp=0' (CVE-2026-98432); put it back below the go directive." >&2
+  exit 1
+fi
 # Upstream master moves on: when it imports a module (or a new major version
 # such as golang-set/v3) that the reviewed graph does not list, the readonly
 # vendor step fails. Say what to do instead of leaving only Go's "go get" hint,
 # which a release must never follow.
 if ! GOFLAGS=-mod=readonly go mod vendor; then
-  echo "::error::Upstream $(git rev-parse --short HEAD 2>/dev/null || echo source) needs modules missing from releases/reviewed-go. Refresh releases/reviewed-go/go.mod and go.sum from that upstream go.mod/go.sum (keeping the reviewed go directive), then update releases/telemetry-audit.json." >&2
+  echo "::error::Upstream $(git rev-parse --short HEAD 2>/dev/null || echo source) needs modules missing from releases/reviewed-go. Refresh releases/reviewed-go/go.mod and go.sum from that upstream go.mod/go.sum (keeping the reviewed go and godebug directives), then update releases/telemetry-audit.json." >&2
   exit 1
 fi
 

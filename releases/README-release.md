@@ -49,8 +49,9 @@ Do not baseline unwanted reporting. Patch repositories use a separate
 `upstream-risk-baseline.json` for their upstream source; pass it with `--policy`.
 Release commands never silently update these baselines to hide findings.
 
-Run `python3 -B tests/remoteRelease.test.py` and
-`python3 -B tests/riskAudit.test.py` for offline positive and negative tests.
+Run `python3 -B tests/remoteRelease.test.py`,
+`python3 -B tests/riskAudit.test.py` and `python3 -B tests/mptcpOff.test.py`
+for offline positive and negative tests.
 Release writes are mocked. Dispatch uses an explicit repository and branch,
 following the [GitHub CLI interface](https://cli.github.com/manual/gh_workflow_run).
 A failed commit or push prevents dispatch. If dispatch fails after pushing,

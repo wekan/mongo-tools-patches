@@ -2,6 +2,12 @@ module github.com/mongodb/mongo-tools
 
 go 1.27.2
 
+// CVE-2026-98432 (a Linux kernel TCP use-after-free, reachable through an
+// MPTCP listener): Go turns MPTCP on for every Linux listen socket by default
+// since Go 1.24. The tools are clients and listen on nothing today; this keeps
+// any listener upstream adds off by default. Keep it when refreshing this file.
+godebug multipathtcp=0
+
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.1
