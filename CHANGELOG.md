@@ -62,7 +62,7 @@ handled (their commits carry the short description and link).
 
 </details>
 
-# Upcoming mongo-tools-patches release
+# upstream-689585a98e772d8fd4dc4e324c6a5d46e574cb7f 2026-10-30 mongo-tools-patches release
 
 **In short:** the tools are built with **no MPTCP listener** by default
 (**CVE-2026-98432**), the **Go toolchain's own telemetry** is really off when the
