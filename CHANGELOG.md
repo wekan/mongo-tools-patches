@@ -64,11 +64,27 @@ handled (their commits carry the short description and link).
 
 # Upcoming mongo-tools-patches release
 
-**In short:** the **Go toolchain's own telemetry** is really off when the tools
-are built and tested, and the build follows upstream **b9ce73d**, whose
+**In short:** the tools are built with **no MPTCP listener** by default
+(**CVE-2026-98432**), the **Go toolchain's own telemetry** is really off when the
+tools are built and tested, and the build follows upstream **b9ce73d**, whose
 **goccy/go-yaml** replaced the yaml.v2/v3 modules the reviewed graph had, after
 **edd1235**, whose per-release **SBOM** and developer-tool installer stopped the
 risk audit.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/21db153ef2">Build the tools with no MPTCP listener by default (CVE-2026-98432)</a>. Thanks to xet7.</summary>
+
+CVE-2026-98432 is a Linux kernel use-after-free in IPv4 TCP connection
+handling, shown to give remote code execution through an MPTCP listener, and
+since Go 1.24 every Linux listen socket of a Go program is MPTCP by default.
+The tools are clients and listen on nothing today: upstream listens only in
+test helpers, and the Azure login they use never starts a local server. The
+reviewed go.mod sets `godebug multipathtcp=0`, so any listener upstream adds is
+off by default, and `update-dependencies.sh` refuses to build without it. Built
+from current upstream, all eight tools and the multicall program carry
+`DefaultGODEBUG=multipathtcp=0`. `tests/mptcpOff.test.py` pins it.
+
+</details>
 
 <details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/93fd8cf">Turn off the Go toolchain's own telemetry with go telemetry off</a>. Thanks to xet7.</summary>
