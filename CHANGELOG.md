@@ -62,7 +62,7 @@ handled (their commits carry the short description and link).
 
 </details>
 
-# Upcoming mongo-tools-patches release
+# upstream-e4017ca020c268eacffd7f1b184de9b0b4b0d71c 2026-11-12 mongo-tools-patches release
 
 **In short:** a green release run no longer shows the risk audit's **known
 references** as errors: the Go **problem matcher** of setup-go read them as
