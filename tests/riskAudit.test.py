@@ -1,3 +1,4 @@
+import re
 import contextlib
 import hashlib
 import importlib.util
@@ -27,10 +28,41 @@ class RiskAudit(unittest.TestCase):
         policy['files']['fix.patch']['reason'] = 'Issue reference in a comment; no network call.'
         with contextlib.redirect_stdout(io.StringIO()) as output:
             r.inspect(self.root, policy)
-        self.assertIn('known reference', output.getvalue())
+        self.assertIn('known reference in fix.patch - Issue reference', output.getvalue())
         self.assertIn('Known baseline URL matches: 1', output.getvalue())
         patch.write_text(patch.read_text()+'+fetch("https://new.example/report");\n')
         with self.assertRaisesRegex(ValueError, 'new URL'): r.inspect(self.root, policy)
+
+    def test_known_reference_lines_are_not_go_compiler_errors(self):
+        # The v1 release run of 2026-11-11 succeeded and still showed 30 errors:
+        # "Info: vendor/.../authority.go: known reference: ..." matched the Go
+        # problem matcher actions/setup-go registers. Both of its patterns, the
+        # current one and the older one, must find nothing in what is printed.
+        matchers = [re.compile(r'^\s*(\.{0,2}[\/\\].+\.go):(?:(\d+):(\d+):)?\s(.*)$'),
+                    re.compile(r'^\s*(.+\.go):(?:(\d+):(\d+):)?\s(.*)$'),
+                    re.compile(r'^([^:]*: )?((.:)?[^:]*\.go):(\d+)?(:(\d+))?:? (.*)$')]
+        self.file.unlink()
+        for name in ('authority.go', 'vendor/github.com/x/y/convert.go', './z.go'):
+            go = self.root/name
+            go.parent.mkdir(parents=True, exist_ok=True)
+            go.write_text('// See https://example.org/spec\n')
+        policy = {'roots':['.'], 'initialized':True, 'files':r.collect(self.root, {'roots':['.']})}
+        for entry in policy['files'].values():
+            entry['reason'] = 'A specification cited in a comment.'
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            r.inspect(self.root, policy)
+        lines = output.getvalue().splitlines()
+        self.assertEqual(sum('known reference in' in l for l in lines), 3)
+        for line in lines:
+            for m in matchers:
+                self.assertIsNone(m.match(line), line)
+        # Negative: the old wording is what the matcher catches.
+        old = 'Info: vendor/github.com/x/y/convert.go: known reference: A specification.'
+        self.assertTrue(any(m.match(old) for m in matchers))
+        # And no other print in the release scripts puts a file name before a colon.
+        for script in ('releases/risk-audit.py', 'releases/remote-release.py'):
+            text = (ROOT/script).read_text()
+            self.assertNotRegex(text, r"print\(f'Info: \{name\}:", script)
 
     def test_ordinary_hash_changes_and_local_logging_do_not_block(self):
         self.file.write_text('console.log("more local diagnostics"); fetch("https://service.example/api");')

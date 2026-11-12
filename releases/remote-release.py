@@ -108,7 +108,8 @@ def audit(root, config):
                 else:
                     unknown.update(word.lower() for word in keywords)
             if known_count:
-                print(f'Info: {name}: {known_count} known dependency keyword matches '
+                # Not "<file>: ...": see the known-reference line in risk-audit.py.
+                print(f'Info: {known_count} known dependency keyword matches in {name} '
                       f'(false positives for default outbound reporting). {known["reason"]}', flush=True)
             if unknown:
                 warnings.append('New/unclassified dependency keyword hints in ' + name + ': ' + ', '.join(sorted(unknown)))

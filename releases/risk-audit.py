@@ -86,7 +86,10 @@ def inspect(root, policy):
             if count > old.get('keywords', {}).get(keyword, 0):
                 findings.append(name + ': new suspicious keyword ' + keyword)
         if old.get('reason') and entry['sha256'] == old.get('sha256'):
-            print(f'Info: {name}: known reference: {old["reason"]}')
+            # Never "<file>: ..." - setup-go's problem matcher reads a line that
+            # starts with a .go path and a colon as a compiler error, and every
+            # known reference in vendor/ became an error annotation on a green run.
+            print(f'Info: known reference in {name} - {old["reason"]}')
         for url in entry['urls']:
             if url in known_urls:
                 known_url_count += 1
