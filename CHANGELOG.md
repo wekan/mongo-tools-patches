@@ -62,6 +62,24 @@ handled (their commits carry the short description and link).
 
 </details>
 
+# Upcoming mongo-tools-patches release
+
+**In short:** a green release run no longer shows the risk audit's **known
+references** as errors: the Go **problem matcher** of setup-go read them as
+compiler errors.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/4b77dcb4b781fc91c7f9e45ef9e44b8360967da0">Known-reference lines are no longer read as Go compiler errors</a>. Thanks to xet7.</summary>
+
+The Release All run of 2026-11-11 succeeded and still showed about 30 errors:
+the audit printed `Info: vendor/.../authority.go: known reference: ...`, and the
+problem matcher that actions/setup-go registers reads a `.go` path followed by
+a colon as a compiler error. The line is now `Info: known reference in <file> -
+<reason>`, and remote-release.py's keyword-match line is worded the same way.
+`tests/riskAudit.test.py` checks that no printed line matches the matcher.
+
+</details>
+
 # upstream-689585a98e772d8fd4dc4e324c6a5d46e574cb7f 2026-10-30 mongo-tools-patches release
 
 **In short:** the tools are built with **no MPTCP listener** by default
