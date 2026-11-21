@@ -46,6 +46,11 @@ class MptcpOff(unittest.TestCase):
             (tmp / 'releases/reviewed-go/go.sum').write_text('', encoding='utf-8')
             script = SCRIPT.read_text(encoding='utf-8')
             head = script[:script.index('if ! GOFLAGS=-mod=readonly go mod vendor')] + 'echo REACHED-VENDOR\n'
+            # The part run here starts as the whole script does, with the Go
+            # toolchain's telemetry turned off before any go command
+            # (tests/telemetry-audit.py requires that of every file that runs
+            # go); with go off PATH below, nothing of Go runs at all.
+            self.assertLess(head.index('go telemetry off'), head.index('cp "$root/releases/reviewed-go/go.mod" go.mod'))
             (tmp / 'releases/update-dependencies.sh').write_text(head, encoding='utf-8')
             work = tmp / 'work'
             work.mkdir()
