@@ -808,12 +808,15 @@
       "keywords": {}
     },
     "common.yml": {
-      "sha256": "1fb6ac63334c8efa85555377eaf90cf2b357cd7f48871a04661ea9492436b05a",
+      "sha256": "e07978cd72f8db0a6e2045e134e23e4617aa5ca6b10c09b2bd7fb8d066d54c20",
       "urls": [
         "http://boxes.10gen.com/build/curator/curator-dist-rhel70-latest.tar.gz",
+        "https://github.com/10gen/mongo-release.git",
+        "https://github.com/10gen/mongodb-downloader.git",
         "https://wiki.mongodb.com/display/DH/Testing+Kerberos"
       ],
-      "keywords": {}
+      "keywords": {},
+      "reason": "Upstream's Evergreen CI configuration, never run by this build and not compiled into any tool. TOOLS-4499 (upstream cc3f524) lists its own 10gen/mongodb-downloader and 10gen/mongo-release repositories under Evergreen modules only so that Evergreen may mint a GitHub token for them; they are not checked out."
     },
     "cyclonedx.sbom.json": {
       "sha256": "89315d3037578b5bd3a4a89d2e87ba75f2d4e6e21f3c3afe4f4449a06e158211",
