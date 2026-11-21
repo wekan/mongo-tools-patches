@@ -62,6 +62,36 @@ handled (their commits carry the short description and link).
 
 </details>
 
+# Upcoming mongo-tools-patches release
+
+**In short:** current upstream **3f7d4e8** builds again: the risk audit knows
+the Evergreen modules upstream added to **common.yml**, and the MPTCP test passes
+the Go telemetry guard.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/dfc6094e2eca0edb92746569b9a546090c1d0338">common.yml's Evergreen modules are a known reference</a>. Thanks to xet7.</summary>
+
+The release of upstream 3f7d4e8 stopped at the risk audit on a new URL origin in
+common.yml: TOOLS-4499 lists upstream's own 10gen/mongodb-downloader and
+10gen/mongo-release repositories under Evergreen modules, so that Evergreen may
+mint a GitHub token for them. common.yml is upstream's CI configuration, never
+run by this build or compiled into a tool, so it is recorded as a known
+reference with its reason, URLs and hash. On a fresh 3f7d4e8 tree all 43
+targets built and passed the binary telemetry gate.
+
+</details>
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/5f650dace4e0a3d8f07ee7558c4a0fd87ec6f924">The MPTCP test passes the Go telemetry guard</a>. Thanks to xet7.</summary>
+
+`tests/telemetry-audit.py` requires every file that runs go to turn the Go
+toolchain's telemetry off, and found `tests/mptcpOff.test.py` by its mention of
+`go mod vendor`, so `tests/workflow-logic.sh` failed. The test runs no go; it
+now asserts that the part of update-dependencies.sh it runs turns the
+telemetry off first, as the whole script does.
+
+</details>
+
 # upstream-e4017ca020c268eacffd7f1b184de9b0b4b0d71c 2026-11-12 mongo-tools-patches release
 
 **In short:** a green release run no longer shows the risk audit's **known
