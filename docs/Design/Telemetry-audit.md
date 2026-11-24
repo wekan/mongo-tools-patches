@@ -1,9 +1,11 @@
 # Telemetry audit
 
 The reviewed source is mongodb/mongo-tools commit
-`b9ce73dc121d6a881c82560b1e32365594688825`, with the complete dependency graph
-taken from that commit's go.mod/go.sum and vendored using Go 1.27.2. The exact
-module graph is covered by the inventory in `releases/telemetry-audit.json`.
+`b7505883209b950f70af691f007a0b2b2a0aad86`, with the dependency graph taken
+from upstream `b9ce73d`'s go.mod/go.sum, golang.org/x/crypto 0.59.0, x/net
+0.63.0, x/sys 0.50.0, x/text 0.44.0, x/term 0.48.0 and x/sync 0.25.0 (security
+fixes in x/crypto and x/net), vendored using Go 1.27.4. The exact module graph
+is covered by the inventory in `releases/telemetry-audit.json`.
 Upstream `d97cdbe` added `release/sbom`, which brings in CycloneDX/cyclonedx-go
 0.12.0. It writes the SBOM and makes no network requests; its CycloneDX schema
 and namespace identifiers are recorded in `releases/upstream-risk-baseline.json`.

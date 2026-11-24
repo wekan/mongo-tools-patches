@@ -15,9 +15,9 @@ uses the same patched vendor tree. An incompatible patch or changed reviewed
 source/vendor inventory stops the build. The Go toolchain also runs with
 `GOTELEMETRY=off` during dependency updates, tests and builds.
 
-Verified against upstream commit `b9ce73dc121d6a881c82560b1e32365594688825` with
-dependencies vendored using Go 1.27.2 (earlier: `d97cdbec5e91`, `3c3f94948f0f`,
-`5e7290222cae`).
+Verified against upstream commit `b7505883209b950f70af691f007a0b2b2a0aad86` with
+dependencies vendored using Go 1.27.4 (earlier: `b9ce73dc121d`, `d97cdbec5e91`,
+`3c3f94948f0f`, `5e7290222cae`).
 Offline fixtures cover patch application, checksums and refusal on unexpected
 source changes. SDK tests exercise request
 forwarding and absence of reporting headers with in-process transports; all eight

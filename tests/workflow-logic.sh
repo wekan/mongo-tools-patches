@@ -716,9 +716,10 @@ echo
 echo "The workflows build the reviewed toolchain and dependency graph:"
 for wf in "$ALL" "$MISSING"; do
   n="$(basename "$wf")"
-  # The TOOLCHAIN is a reviewed Go release: 1.27.3 carries the crypto/x509
-  # security fix. releases/reviewed-go/go.mod's go directive stays a minimum.
-  grep -q "go-version: '1.27.3'" "$wf" && ok "$n pins reviewed Go" \
+  # The TOOLCHAIN is a reviewed Go release: 1.27.4 carries the standard library
+  # fixes a Trivy scan reported for 1.27.3. releases/reviewed-go/go.mod's go
+  # directive is a minimum and may not be newer than the toolchain.
+  grep -q "go-version: '1.27.4'" "$wf" && ok "$n pins reviewed Go" \
     || fail "$n does not pin reviewed Go"
   grep -q 'releases/update-dependencies.sh' "$wf" && ok "$n restores reviewed dependencies" \
     || fail "$n does not restore dependencies"
@@ -730,6 +731,23 @@ done
   || fail "release still resolves unaudited dependencies"
 grep -q 'reviewed-go/go.mod' "$ROOT/releases/update-dependencies.sh" \
   && ok "reviewed Go manifest restored" || fail "reviewed Go manifest missing"
+
+# The reviewed graph keeps the security-fixed modules, and its go directive is
+# one the pinned toolchain can build (GOTOOLCHAIN=local would refuse a newer one).
+at_least() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]; }
+reviewed="$ROOT/releases/reviewed-go/go.mod"
+for pin in 'golang.org/x/crypto v0.59.0' 'golang.org/x/net v0.63.0'; do
+  mod="${pin% *}"; want="${pin#* }"
+  have="$(awk -v m="$mod" '$1 == m { print $2 }' "$reviewed")"
+  [ -n "$have" ] && at_least "$have" "$want" && ok "reviewed $mod $have >= $want" \
+    || fail "reviewed $mod is '${have:-missing}', need >= $want"
+done
+directive="$(awk '$1 == "go" { print $2 }' "$reviewed")"
+at_least 1.27.4 "$directive" && ok "reviewed go $directive is buildable by Go 1.27.4" \
+  || fail "reviewed go $directive is newer than the pinned toolchain"
+# NEGATIVE: the comparison itself refuses an older version.
+! at_least v0.61.0 v0.63.0 && ok "an older x/net would be refused" \
+  || fail "version comparison accepted an older x/net"
 
 python3 "$ROOT/tests/release-telemetry.py" && ok "binary telemetry gates" || fail "binary telemetry gates failed"
 
