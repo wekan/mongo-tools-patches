@@ -64,9 +64,28 @@ handled (their commits carry the short description and link).
 
 # Upcoming mongo-tools-patches release
 
-**In short:** current upstream **3f7d4e8** builds again: the risk audit knows
-the Evergreen modules upstream added to **common.yml**, and the MPTCP test passes
-the Go telemetry guard.
+**In short:** the tools are built with **Go 1.27.4**, **golang.org/x/crypto
+v0.59.0** and **x/net v0.63.0**, which fix what Artifact Hub's Trivy scan of
+the WeKan v13.30 image reported, and current upstream **3f7d4e8** builds again:
+the risk audit knows the Evergreen modules upstream added to **common.yml**, and
+the MPTCP test passes the Go telemetry guard.
+
+<details>
+<summary><a href="https://github.com/wekan/mongo-tools-patches/commit/1695d570e5c053be26394825f1fa06323047dbf9">Build with Go 1.27.4, golang.org/x/crypto v0.59.0 and x/net v0.63.0</a>. Thanks to xet7.</summary>
+
+Artifact Hub's Trivy scan of the WeKan v13.30 image listed fixable
+vulnerabilities in the `mongo-tools` binary: the Go 1.27.3 standard library
+(fixed in 1.27.4), x/crypto v0.58.0 (fixed in commit 2f1f834, which v0.59.0
+contains) and x/net v0.61.0 (fixed in 0.62.0). Both release workflows install
+Go 1.27.4, and `releases/reviewed-go/go.mod` requires go 1.27.4, x/crypto
+v0.59.0 and x/net v0.63.0 - the newest releases - with x/sys, x/text, x/term
+and x/sync moved up to what they need. `releases/telemetry-audit.json` has
+upstream b750588's fingerprints. `tests/workflow-logic.sh` pins the toolchain
+and the fixed module versions, with a negative test. On a fresh b750588 clone
+all 43 targets build and pass the telemetry gate, the linux arm64 binary embeds
+go1.27.4, x/crypto v0.59.0 and x/net v0.63.0, and Trivy finds nothing in it.
+
+</details>
 
 <details>
 <summary><a href="https://github.com/wekan/mongo-tools-patches/commit/dfc6094e2eca0edb92746569b9a546090c1d0338">common.yml's Evergreen modules are a known reference</a>. Thanks to xet7.</summary>
