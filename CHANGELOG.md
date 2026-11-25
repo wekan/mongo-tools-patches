@@ -62,7 +62,7 @@ handled (their commits carry the short description and link).
 
 </details>
 
-# Upcoming mongo-tools-patches release
+# upstream-b7505883209b950f70af691f007a0b2b2a0aad86 2026-11-25 mongo-tools-patches release
 
 **In short:** the tools are built with **Go 1.27.4**, **golang.org/x/crypto
 v0.59.0** and **x/net v0.63.0**, which fix what Artifact Hub's Trivy scan of
